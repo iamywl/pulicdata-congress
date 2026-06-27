@@ -1,0 +1,76 @@
+last_updated: 2026-06-27 15:00
+
+# 5_research — 조사·근거자료 목록 (04-주유소-최저가-유가예측)
+
+> 본 제안서(1_제안서.md)에서 인용한 데이터셋·통계·논문·보도자료의 출처 표.
+> 정직성 원칙: 실재 확인된 출처만 등재. 미확인 추정값은 [추정] 표기.
+
+---
+
+## 핵심 공공데이터셋 (산업통상자원부 계열 — 탈락요건 충족 필수)
+
+| # | 데이터셋명 | 제공 기관 | 포털 URL | 형식 | 활용 목적 |
+|:---:|:---|:---|:---|:---:|:---|
+| D-01 | **전국 주유소 평균가격** | 한국석유공사 (Opinet) | https://www.data.go.kr/data/15150932/openapi.do | API | 전국 1만 1천 개소 실시간 유가, 경로 기반 최저가 산출 핵심 |
+| D-02 | **국내석유제품 가격 동향** | 한국석유공사 (Opinet) | https://www.data.go.kr/data/15038488/openapi.do | API | 주간 전국 평균유가 시계열 → LSTM 예측 모델 학습 |
+
+---
+
+## 보조 데이터 (타 기관·민간)
+
+| # | 데이터·통계명 | 제공 기관 | URL / 출처 | 활용 목적 |
+|:---:|:---|:---|:---|:---|
+| D-03 | WTI 주간 원유 종가 | EIA (미국 에너지정보청) | https://www.eia.gov/dnav/pet/hist/rwtcW.htm | LSTM 보조 피처 (국내 유가 선행지수) |
+| D-04 | Dubai Crude 주간 종가 | 한국석유공사 국제유가 동향 | https://www.opinet.co.kr | LSTM 보조 피처 |
+| D-05 | 원달러 환율 주간 데이터 | 한국은행 경제통계시스템 (ECOS) | https://ecos.bok.or.kr | 환율 충격 변수 |
+| D-06 | 유류세 제도 이력 | 기획재정부 보도자료 | https://www.moef.go.kr | 정책 더미 변수 |
+| D-07 | Kakao Map JS API | 카카오 | https://apis.map.kakao.com | 경로 지도 시각화 |
+
+---
+
+## 참고 통계·보고서
+
+| # | 자료명 | 기관 | URL | 인용 내용 |
+|:---:|:---|:---|:---|:---|
+| R-01 | 「자동차 등록 현황」 2024 | 국토교통부 | https://www.molit.go.kr | 국내 자동차 등록 약 2,600만 대 |
+| R-02 | 전국 주유소 현황 | 한국석유공사 Opinet | https://www.opinet.co.kr | 전국 주유소 약 1만 1천 개소 (2025) |
+| R-03 | Opinet 주유소 가격 공공데이터 조회 | 한국석유공사 / data.go.kr | https://www.data.go.kr/data/15150932/openapi.do | 동일 시도 내 최대 가격 격차 200~300원/ℓ (직접 조회 기반 관찰값) |
+
+---
+
+## 참고 학술문헌
+
+| # | 저자 | 제목 | 저널·년도 | URL / DOI | 인용 목적 |
+|:---:|:---|:---|:---|:---|:---|
+| L-01 | Borenstein, S., Cameron, A.C. & Gilbert, R. | "Do Gasoline Prices Respond Asymmetrically to Crude Oil Price Changes?" | *Quarterly Journal of Economics*, 112(1), 1997 | https://doi.org/10.1162/003355397555208 | 로켓·깃털(Rocket and Feather) 현상 원 연구 |
+| L-02 | Zhang, G.P. | "Time series forecasting using a hybrid ARIMA and neural network model" | *Neurocomputing*, 50, 2003 | https://doi.org/10.1016/S0925-2312(01)00702-0 | 유사 시계열 예측 MAPE 기준 |
+| L-03 | Hochreiter, S. & Schmidhuber, J. | "Long Short-Term Memory" | *Neural Computation*, 9(8), 1997 | https://doi.org/10.1162/neco.1997.9.8.1735 | LSTM 모델 원 논문 |
+
+---
+
+## 경쟁 서비스 현황 조사
+
+| # | 서비스명 | 운영사 | URL | 조사 항목 |
+|:---:|:---|:---|:---|:---|
+| C-01 | Opinet 앱 | 한국석유공사 | https://www.opinet.co.kr | 현재 기능: 현재 최저가 지도, 예측 없음 확인 |
+| C-02 | T맵 주유소 기능 | SK텔레콤 | https://tmap.co.kr | 경로 기반 약식 필터, 예측 없음 |
+| C-03 | 네이버 지도 주유소 | 네이버 | https://map.naver.com | 현재가 표시만, 경로 최적화·예측 없음 |
+| C-04 | 카카오 지도 주유소 | 카카오 | https://map.kakao.com | 현재가 표시만 |
+
+---
+
+## 보강 필요 항목 (추후 `5_research/` 확대 예정)
+
+> 아래 항목은 초안 단계에서 [추정]으로 처리한 수치에 대한 실 검증이 필요한 항목이다.
+
+| 항목 | 현재 처리 | 필요 보강 |
+|:---|:---|:---|
+| 운전자 중 "최저가 주유소 정보 필요" 응답 비율 | [추정] 68% | 한국소비자원 실제 조사 보고서 확인 |
+| 국내 내연기관 차량 수 | [추정] 2,300만 대 | 국토부 「자동차 등록 현황」 세부 분류 확인 |
+| 유료 전환율·CAC·LTV 벤치마크 | [추정] | 유사 생활 앱(주유·지도 카테고리) 공개 데이터 탐색 |
+| LSTM 유가 예측 MAPE 목표 2% | [추정] | 실 모델 교차검증 후 실측치로 교체 |
+| 연간 연료비 절감액 추산 600억 원 | [추정] | 주유 통계 기반 재산출 필요 |
+
+---
+
+> 본 README는 제안서 작성 기준 초안이다. 개발 착수 시 각 항목을 개별 `.md` 파일 또는 PDF로 보강하고, 제안서 각주(`[^N]`)와 1:1 연결한다.
