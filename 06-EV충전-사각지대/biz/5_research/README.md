@@ -30,7 +30,7 @@ last_updated: 2026-06-27 14:00
 | DS-6 | 자동차 등록통계 (지역별 EV 등록 대수) | 한국교통안전공단 / 국토교통부 | 국토교통부 | https://stat.molit.go.kr/ | 통계 | ✅ |
 | DS-7 | 도로명주소 GIS (읍면동 경계) | 행정안전부 | 행안부 | https://www.juso.go.kr/openIndexPage.do | SHP | ✅ |
 | DS-8 | 기상 관측 데이터 (기온·날씨) | 기상청 | 환경부 | https://data.kma.go.kr/ | OpenAPI | ✅ |
-| DS-9 | 고속도로 교통량 데이터 | 한국도로공사 | 국토교통부 | https://www.data.go.kr/data/15044647/openapi.do | OpenAPI | ⚠️ |
+| DS-9 | 고속도로 교통량 데이터 | 한국도로공사 | 국토교통부 | [연계 검토·데이터셋 미확정] | OpenAPI | ⚠️ |
 
 ---
 
