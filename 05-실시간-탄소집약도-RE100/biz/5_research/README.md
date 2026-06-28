@@ -1,5 +1,5 @@
 ---
-last_updated: 2026-06-27 15:00
+last_updated: 2026-06-28 12:00
 프로젝트: 그린아워(GreenHour) — 실시간 탄소집약도 + 기업 RE100 조달 계산기
 용도: 제안서(1_제안서.md) 인용 출처 통합 관리
 ---
@@ -24,10 +24,11 @@ last_updated: 2026-06-27 15:00
 
 | 번호 | 데이터셋명 | 제공기관 | 데이터 유형 | URL | 제안서 활용 |
 |:---:|:---|:---|:---:|:---|:---|
-| DS-03 | 계통한계가격(SMP) | 전력거래소(KPX) | API | https://www.data.go.kr/data/15076302/openapi.do | PPA vs 시장가 경제성 비교 |
+| DS-03 | 계통한계가격(SMP) | 전력거래소(KPX) | API | https://www.data.go.kr/data/15076302/openapi.do | PPA vs 시장가 경제성 비교 — 조달 최적화 비용 계산 핵심 |
 | DS-04 | 현재 전력수급현황 (5분) | 전력거래소(KPX) | API | https://www.data.go.kr/data/15056640/openapi.do | 실시간 예비율·수요 데이터(탄소집약도 보정) |
 | DS-05 | 지역별 시간별 태양광 발전량 | 전력거래소(KPX) | API | https://www.data.go.kr/data/15103243/openapi.do | 태양광 패턴 학습 데이터 (LSTM 훈련용) |
 | DS-06 | 산업분류별 전력사용량 | 한국전력(KEPCO) | API | https://www.data.go.kr/data/15101403/openapi.do | 업종별 벤치마크 탄소집약도 비교 |
+| DS-07 | 신재생에너지 공급의무화(RPS) 이행실적 | 한국에너지공단(KEA) | 파일 | https://www.data.go.kr/data/15121342/fileData.do | RPS 이행 발전사 재생에너지 공급 용량 → PPA 후보 발전소 식별 |
 
 ---
 

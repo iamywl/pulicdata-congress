@@ -1,4 +1,4 @@
-last_updated: 2026-06-27 15:00
+last_updated: 2026-06-28 14:00
 
 # 5_research — 조사·근거자료 목록 (04-주유소-최저가-유가예측)
 
@@ -9,10 +9,12 @@ last_updated: 2026-06-27 15:00
 
 ## 핵심 공공데이터셋 (산업통상자원부 계열 — 탈락요건 충족 필수)
 
-| # | 데이터셋명 | 제공 기관 | 포털 URL | 형식 | 활용 목적 |
-|:---:|:---|:---|:---|:---:|:---|
-| D-01 | **전국 주유소 평균가격** | 한국석유공사 (Opinet) | https://www.data.go.kr/data/15150932/openapi.do | API | 전국 1만 1천 개소 실시간 유가, 경로 기반 최저가 산출 핵심 |
-| D-02 | **국내석유제품 가격 동향** | 한국석유공사 (Opinet) | https://www.data.go.kr/data/15038488/openapi.do | API | 주간 전국 평균유가 시계열 → LSTM 예측 모델 학습 |
+| # | 데이터셋명 | 제공 기관 | data.go.kr 데이터셋 ID | 포털 URL | 형식 | 활용 목적 |
+|:---:|:---|:---|:---:|:---|:---:|:---|
+| D-01 | **전국 주유소 평균가격** | 한국석유공사 (Opinet) | **15150932** | https://www.data.go.kr/data/15150932/openapi.do | API | 전국 1만 1천 개소 실시간 유가, 경로 기반 최저가 산출 핵심 |
+| D-02 | **국내석유제품 가격 동향** | 한국석유공사 (Opinet) | **15038488** | https://www.data.go.kr/data/15038488/openapi.do | API | 주간 전국 평균유가 시계열 → LSTM 예측 모델 학습 |
+
+> ⚠️ D-01·D-02는 평가 탈락요건(산업통상자원부 공공데이터 미사용 시 제외) 충족을 위해 서비스에 실 연동한다.
 
 ---
 
@@ -30,21 +32,23 @@ last_updated: 2026-06-27 15:00
 
 ## 참고 통계·보고서
 
-| # | 자료명 | 기관 | URL | 인용 내용 |
-|:---:|:---|:---|:---|:---|
-| R-01 | 「자동차 등록 현황」 2024 | 국토교통부 | https://www.molit.go.kr | 국내 자동차 등록 약 2,600만 대 |
-| R-02 | 전국 주유소 현황 | 한국석유공사 Opinet | https://www.opinet.co.kr | 전국 주유소 약 1만 1천 개소 (2025) |
-| R-03 | Opinet 주유소 가격 공공데이터 조회 | 한국석유공사 / data.go.kr | https://www.data.go.kr/data/15150932/openapi.do | 동일 시도 내 최대 가격 격차 200~300원/ℓ (직접 조회 기반 관찰값) |
+| # | 자료명 | 기관 | URL | 인용 내용 | 제안서 각주 |
+|:---:|:---|:---|:---|:---|:---:|
+| R-01 | 「자동차 등록 현황」 2024 | 국토교통부 | https://www.molit.go.kr | 국내 자동차 등록 약 2,600만 대 | [^1] |
+| R-02 | 전국 주유소 현황 | 한국석유공사 Opinet | https://www.opinet.co.kr | 전국 주유소 약 1만 1천 개소 (2025) | [^2] |
+| R-03 | Opinet 주유소 가격 공공데이터 조회 | 한국석유공사 / data.go.kr | https://www.data.go.kr/data/15150932/openapi.do | 동일 시도 내 최대 가격 격차 200~300원/ℓ (직접 조회 기반 관찰값) | [^3] |
 
 ---
 
 ## 참고 학술문헌
 
-| # | 저자 | 제목 | 저널·년도 | URL / DOI | 인용 목적 |
-|:---:|:---|:---|:---|:---|:---|
-| L-01 | Borenstein, S., Cameron, A.C. & Gilbert, R. | "Do Gasoline Prices Respond Asymmetrically to Crude Oil Price Changes?" | *Quarterly Journal of Economics*, 112(1), 1997 | https://doi.org/10.1162/003355397555208 | 로켓·깃털(Rocket and Feather) 현상 원 연구 |
-| L-02 | Zhang, G.P. | "Time series forecasting using a hybrid ARIMA and neural network model" | *Neurocomputing*, 50, 2003 | https://doi.org/10.1016/S0925-2312(01)00702-0 | 유사 시계열 예측 MAPE 기준 |
-| L-03 | Hochreiter, S. & Schmidhuber, J. | "Long Short-Term Memory" | *Neural Computation*, 9(8), 1997 | https://doi.org/10.1162/neco.1997.9.8.1735 | LSTM 모델 원 논문 |
+| # | 저자 | 제목 | 저널·년도 | URL / DOI | 인용 목적 | 제안서 각주 |
+|:---:|:---|:---|:---|:---|:---|:---:|
+| L-01 | Borenstein, S., Cameron, A.C. & Gilbert, R. | "Do Gasoline Prices Respond Asymmetrically to Crude Oil Price Changes?" | *Quarterly Journal of Economics*, 112(1), 1997 | https://doi.org/10.1162/003355397555208 | 로켓·깃털(Rocket and Feather) 현상 원 연구 | [^4] |
+| L-02 | Zhang, G.P. | "Time series forecasting using a hybrid ARIMA and neural network model" | *Neurocomputing*, 50, 2003 | https://doi.org/10.1016/S0925-2312(01)00702-0 | 유사 시계열 예측 MAPE 기준 | [^5] |
+| L-03 | Hochreiter, S. & Schmidhuber, J. | "Long Short-Term Memory" | *Neural Computation*, 9(8), 1997 | https://doi.org/10.1162/neco.1997.9.8.1735 | LSTM 모델 원 논문 | [^6] |
+| L-04 | Kim, W.C. & Mauborgne, R. | *Blue Ocean Strategy* | Harvard Business Review Press, 2005 | — | 블루오션 전략 프레임워크 | [^7] |
+| L-05 | Ulwick, A.W. | *What Customers Want: Using Outcome-Driven Innovation* | McGraw-Hill, 2005 | — | JTBD 방법론 | [^8] |
 
 ---
 
@@ -66,11 +70,24 @@ last_updated: 2026-06-27 15:00
 | 항목 | 현재 처리 | 필요 보강 |
 |:---|:---|:---|
 | 운전자 중 "최저가 주유소 정보 필요" 응답 비율 | [추정] 68% | 한국소비자원 실제 조사 보고서 확인 |
-| 국내 내연기관 차량 수 | [추정] 2,300만 대 | 국토부 「자동차 등록 현황」 세부 분류 확인 |
+| 국내 내연기관 차량 수 | [추정] 2,300만 대 | 국토부 「자동차 등록 현황」 세부 분류(연료별) 확인 |
 | 유료 전환율·CAC·LTV 벤치마크 | [추정] | 유사 생활 앱(주유·지도 카테고리) 공개 데이터 탐색 |
 | LSTM 유가 예측 MAPE 목표 2% | [추정] | 실 모델 교차검증 후 실측치로 교체 |
-| 연간 연료비 절감액 추산 600억 원 | [추정] | 주유 통계 기반 재산출 필요 |
+| 연간 연료비 절감액 추산 600억 원 | [추정] | 주유 통계(Opinet 총 판매량) 기반 재산출 필요 |
+| 로켓·깃털 현상 국내 적용 시차 1~3주 | [추정, L-01 기반] | 국내 실증 논문(한국에너지경제연구원 등) 탐색 |
 
 ---
 
-> 본 README는 제안서 작성 기준 초안이다. 개발 착수 시 각 항목을 개별 `.md` 파일 또는 PDF로 보강하고, 제안서 각주(`[^N]`)와 1:1 연결한다.
+## 그림자료 관련 데이터 근거
+
+| 그림 번호 | 그림 제목 | 데이터 근거 |
+|:---:|:---|:---|
+| 그림 1 | 시스템 아키텍처 | D-01(15150932)·D-02(15038488) — 실제 연동 API 기반 설계 |
+| 그림 2 | 유가 정보 비대칭 인과 구조 | L-01(로켓·깃털), R-03(200~300원/ℓ 격차), R-01(2,600만 대) |
+| 그림 3 | 사용자 서비스 흐름도 | 서비스 설계 기반 (공공 API 연동 흐름) |
+| 그림 4 | 상용화 단계별 로드맵 | 시장 추산(R-01·R-02 기반) |
+| 그림 5 | 수익구조 — 고객 세그먼트별 수익원 | 단위경제성 표(표 8·9) 기반 |
+
+---
+
+> 본 README는 제안서 작성 기준 초안이다. 개발 착수 시 각 항목을 개별 `.md` 파일 또는 PDF로 보강하고, 제안서 각주(`[^N]`)와 1:1 연결한다. 현재 참고문헌 수: 8 / 1,000 목표 — 보강 필요.
