@@ -1,4 +1,4 @@
-last_updated: 2026-06-27 19:30
+last_updated: 2026-06-28 14:00
 
 # 5_research — 에너지 퀘스트 데이터셋·출처 목록
 
@@ -36,6 +36,7 @@ last_updated: 2026-06-27 19:30
 | 6 | 2022 개정 교육과정 — 에너지 단원 | 국가교육과정정보센터(NCIC) | https://ncic.re.kr/ | 웹 | 교과 연계 문항 매핑 기준 |
 | 7 | 에너지바우처 지급 현황 | 에너지공단 / 산업통상자원부 | https://www.energyvoucher.or.kr/ | 웹 | 에너지 취약계층 맥락 배경 조사 |
 | 8 | 한국 전력 수급 예비율 현황 | 전력거래소(KPX) 통계 포털 | https://www.kpx.or.kr/ | 웹 | 전력수급 현황 배경 조사 |
+| 9 | 에너지공단 연간보고서 2023 | 한국에너지공단(KEMCO) | https://www.kemco.or.kr/ | PDF | 연간 에너지 교육 사업 수혜 인원(약 100만명) 근거 [^6] — URL·수치 확인 필요 |
 
 ---
 
@@ -65,6 +66,7 @@ last_updated: 2026-06-27 19:30
 | [^3] | 교육부·한국교육개발원 「교육통계서비스」 (2025). 전국 초·중·고 학교 수 통계. https://kess.kedi.re.kr/ |
 | [^4] | 한국에너지공단 에너지 교육 관련 조사 보고서 [출처 URL 확인 필요 — 제출 전 보강]. |
 | [^5] | Mayer, R.E. 「Computer Games for Learning: What the Science Says」 (2019). MIT Press. 게임 기반 학습 효과 메타분석. https://mitpress.mit.edu/ |
+| [^6] | 한국에너지공단 「에너지공단 연간보고서」 (2023). 에너지 교육 사업 수혜 인원 및 현황. https://www.kemco.or.kr/ [출처 URL·수치 확인 필요 — 제출 전 보강] |
 
 ---
 

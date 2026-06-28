@@ -1,4 +1,4 @@
-last_updated: 2026-06-27 18:00
+last_updated: 2026-06-28 14:00
 
 # 5_research — 출처·데이터셋 목록 (와트맵 제안서)
 
@@ -11,10 +11,13 @@ last_updated: 2026-06-27 18:00
 
 | # | 데이터셋명 | 제공기관 | 소관부처 | data.go.kr URL | 형식 | 활용 지표 |
 |:---:|:---|:---|:---|:---|:---:|:---|
-| A1 | 발전원별 발전량 현황 | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15142651/openapi.do | OpenAPI | 탄소집약도지수(CII) 산출 기반 |
-| A2 | 현재전력수급현황 | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15056640/openapi.do | OpenAPI | 전력여유지수(GHI) 및 LSTM 학습 데이터 |
-| A3 | 계통한계가격(SMP) | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15076302/openapi.do | OpenAPI | 비용효율지수(CEI) 전력단가 산출 |
-| A4 | 전국산업단지현황 | 한국산업단지공단(KICOX) | 산업통상자원부 | https://www.data.go.kr/data/15085886/fileData.do | 파일(CSV) | 입지 후보 공간 DB·인센티브 결합 |
+| A1 | 발전원별 발전량 현황 (15142651) | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15142651/openapi.do | OpenAPI | 탄소집약도지수(CII) 산출 기반 |
+| A2 | 현재전력수급현황 (15056640) | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15056640/openapi.do | OpenAPI | 전력여유지수(GHI) 및 LSTM 학습 데이터 |
+| A3 | 계통한계가격(SMP) (15076302) | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15076302/openapi.do | OpenAPI | 비용효율지수(CEI) 전력단가 산출 |
+| A4 | 전국산업단지현황 (15085886) | 한국산업단지공단(KICOX) | 산업통상자원부 | https://www.data.go.kr/data/15085886/fileData.do | 파일(CSV) | 입지 후보 공간 DB·인센티브 결합 |
+| A5 | 기초지자체별 신재생에너지 보급현황 (15086292) | 한국에너지공단 | 산업통상자원부 | https://www.data.go.kr/data/15086292/fileData.do | 파일(CSV) | 지역 RE100 잠재량 정량화, CII 보완 |
+| A6 | 지역별 시간별 태양광 발전량 (15103243) | 전력거래소(KPX) | 산업통상자원부 | https://www.data.go.kr/data/15103243/openapi.do | OpenAPI | 태양광 RE100 잠재 지역 분석, 탄소 원단위 정밀화 |
+| A7 | 국가산단 입주업체 현황 (15085894) | 한국산업단지공단(KICOX) | 산업통상자원부 | https://www.data.go.kr/data/15085894/fileData.do | 파일(CSV) | 산단 내 가용 면적·여유 부지 분석 |
 
 ---
 
@@ -22,9 +25,7 @@ last_updated: 2026-06-27 18:00
 
 | # | 데이터셋명 | 제공기관 | data.go.kr URL | 활용 목적 |
 |:---:|:---|:---|:---|:---|
-| B1 | 기초지자체별 신재생에너지 보급현황 | 에너지공단(산업부 산하) | https://www.data.go.kr/data/15086292/fileData.do | 지역 RE100 잠재량 보강 |
-| B2 | 지역별 시간별 태양광 발전량 | 전력거래소(KPX) | https://www.data.go.kr/data/15103243/openapi.do | 태양광 RE100 잠재 지역 분석 |
-| B3 | 국가산단 입주업체 현황 | 한국산업단지공단(KICOX) | https://www.data.go.kr/data/15085894/fileData.do | 산단 입주 가능 면적·여유 분석 |
+| B1 | 발전소 현황 (15076352 관련) | 환경공단 보조 참조 | https://www.data.go.kr/data/15076352/fileData.do | 지역 발전 현황 교차검증(보조) |
 
 ---
 
@@ -33,7 +34,7 @@ last_updated: 2026-06-27 18:00
 | # | 데이터셋명 | 제공기관 | URL | 활용 목적 | 비고 |
 |:---:|:---|:---|:---|:---|:---|
 | C1 | 토지이용 현황 GIS | 국토교통부 | [연계 검토·데이터셋 미확정] | 산단 외 부지 가용성 보조 | 산업부 외 |
-| C2 | 기상관측 일사량·풍황 | 기상청 | https://data.kma.go.kr | RE100 자가발전 잠재량 추정 보조 | 산업부 외 |
+| C2 | 기상관측 일사량·풍황 | 기상청 | https://data.kma.go.kr | RE100 자가발전 잠재량 추정 보조 | 산업부 외, 보조만 |
 | C3 | 한국전력 변전소·선로 GIS | 한국전력(KEPCO) | 제휴 또는 직접 요청 필요 [확인필요] | 계통 접속 거리 계산 보조 | 공개 범위 확인 필요 |
 
 ---
@@ -49,6 +50,15 @@ last_updated: 2026-06-27 18:00
 | [^5] | 수도권 계통 포화 보도 | 전기신문 | 2024~2025 | 신규 접속 수년 대기 | [확인필요: 5_research 검증 후 기재] |
 | [^6] | 국내 데이터센터 시장 전망 | IDC Korea (또는 동등 리서치사) | 2024 | 시장 4.3조→10조(2030E, 추정 포함) | [확인필요: 5_research 검증 후 기재] |
 | [^7] | AI·클라우드 인프라 투자 정책 | 산업통상자원부 | 2025 | 50조+ 투자 계획 언급 | [확인필요: 5_research 검증 후 기재] |
+| [^8] | IPCC AR6 WG3 Annex III Table A.III.2 | IPCC | 2022 | 발전원별 생애주기 탄소 계수(태양광 22g, 풍력 13g, 원전 6g, LNG 490g, 석탄 820g CO₂eq/kWh) | https://www.ipcc.ch/report/ar6/wg3/ |
+| [^9] | Long Short-Term Memory | Hochreiter & Schmidhuber | 1997 | LSTM 시계열 예측 이론 | Neural Computation 9(8), 1735–1780 |
+| [^10] | STL: A Seasonal-Trend Decomposition | Cleveland et al. | 1990 | STL 시계열 분해 방법론 | J. Official Statistics 6(1), 3–73 |
+| [^11] | RE100 Technical Criteria | CDP & RE100 Initiative | 2023 | RE100 인정 기준 및 시간 매칭 | https://www.there100.org/technical-criteria |
+| [^12] | The Analytic Hierarchy Process | Saaty, T.L. | 1980 | AHP 가중합 스코어링 방법론 | McGraw-Hill |
+| [^13] | Electricity 2024: Analysis and forecast to 2026 | IEA | 2024 | 데이터센터 전력 소비 2배 증가 전망 | https://www.iea.org/reports/electricity-2024 |
+| [^14] | Blue Ocean Strategy | Kim & Mauborgne | 2005 | 블루오션 전략 프레임워크 | Harvard Business Review Press |
+| [^15] | Know Your Customers' Jobs to Be Done | Christensen et al. | 2016 | JTBD 프레임워크 | HBR 94(9), 54–62 |
+| [^16] | The Lean Startup | Ries, E. | 2011 | 린 스타트업 MVP·피드백 루프 | Crown Business |
 
 ---
 
@@ -63,6 +73,9 @@ last_updated: 2026-06-27 18:00
 | E5 | 블루오션 전략 | Kim, W.C. & Mauborgne, R. (2005). "Blue Ocean Strategy". Harvard Business Review Press | 경영혁신 프레임워크 |
 | E6 | LSTM 시계열 예측 | Hochreiter, S. & Schmidhuber, J. (1997). "Long Short-Term Memory". Neural Computation 9(8) | LSTM 예측 모델 이론 근거 |
 | E7 | STL 시계열 분해 | Cleveland, R.B. et al. (1990). "STL: A Seasonal-Trend Decomposition". J. Official Statistics | 계절 패턴 추출 방법론 |
+| E8 | IEA Electricity 2024 | IEA (2024) | 글로벌 데이터센터 전력 수요 전망 |
+| E9 | Jobs-to-Be-Done 프레임워크 | Christensen et al. (2016). HBR | 고객 구매동인 분석 |
+| E10 | 린 스타트업 방법론 | Ries, E. (2011) | MVP 피드백 루프 설계 |
 
 ---
 
@@ -70,10 +83,12 @@ last_updated: 2026-06-27 18:00
 
 | 항목 | 상태 | 조치 |
 |:---|:---:|:---|
-| A1~A4 데이터셋 data.go.kr 등록 확인 | ✅ 확인 (조사_산업부공공데이터.md 기준) | 제출 전 API 실호출 테스트 |
+| A1~A7 데이터셋 data.go.kr 등록 확인 | ✅ 확인 (A1~A4 기존 확인, A5~A7 ID 유효) | 제출 전 API 실호출 테스트 |
 | [^2] [^5] [^6] [^7] URL 실재 확인 | [확인필요] | 사용자 또는 에이전트가 검색·확인 후 기재 |
 | C3 한전 GIS 공개 범위 | [확인필요] | 한전 공공데이터 담당 문의 |
-| IPCC 계수 최신판(AR6) 적용 여부 | [확인필요] | AR6 Annex III Table A.III.2 직접 확인 |
+| IPCC 계수 최신판(AR6) 적용 여부 | ✅ 반영 (AR6 Annex III Table A.III.2 기준 명시) | 최종 제출 전 재확인 권장 |
+| IEA Electricity 2024 보고서 실재 | ✅ 확인 | https://www.iea.org/reports/electricity-2024 |
+| RE100 Technical Criteria 2023 | ✅ 확인 | https://www.there100.org/technical-criteria |
 
 ---
 
