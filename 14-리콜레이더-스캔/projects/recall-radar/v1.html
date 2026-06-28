@@ -1,0 +1,1676 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>리콜 레이더 — 위해제품 즉시확인 · 개인화 리콜 알림</title>
+<!--
+  ============================================================================
+  리콜 레이더 (Recall Radar) — 데모앱 v1 (단일 자체완결 HTML · 오프라인 구동)
+  ============================================================================
+  데이터 정직성 선언 (CLAUDE.md §2.6):
+    본 데모의 리콜 레코드는 MOCK 데이터다.
+    실제 서비스는 국가기술표준원(KATS, 산업통상자원부 소속) 공공데이터 API를
+    연동한다:
+      - 제품 안전인증·리콜 정보 (data.go.kr 데이터셋 15116894, OpenAPI)
+      - 제품안전 국외리콜정보 (data.go.kr 데이터셋 15040707, 파일)
+      - 어린이제품 KC인증 품목 (data.go.kr 데이터셋 15085894, OpenAPI)
+    공모전 데모 단계에서는 API 키가 없으므로(§3.1 키 부재 mock fallback),
+    위 API의 응답 구조(RECALL_SEQ, PRODUCT_NM, MODEL_NM, MAKER_NM,
+    RECALL_RSN, RECALL_DT 등)를 모사한 mock 레코드 50건+를 코드에 내장했다.
+    실 연동 시 fetchRecalls() 함수 한 곳만 교체하면 된다(주석 표기됨).
+  ============================================================================
+-->
+<style>
+:root{
+  --hue: 211;
+  --brand: hsl(211 92% 52%);
+  --brand-d: hsl(211 92% 44%);
+  --brand-soft: hsl(211 92% 96%);
+  --ink: hsl(214 30% 16%);
+  --ink-2: hsl(214 14% 42%);
+  --ink-3: hsl(214 12% 60%);
+  --bg: hsl(210 36% 97%);
+  --surface: #ffffff;
+  --surface-2: hsl(210 30% 98.5%);
+  --line: hsl(214 20% 90%);
+  --line-2: hsl(214 22% 84%);
+  --danger: hsl(2 78% 53%);
+  --danger-soft: hsl(2 80% 96%);
+  --warn: hsl(36 96% 48%);
+  --warn-soft: hsl(40 96% 95%);
+  --safe: hsl(150 62% 40%);
+  --safe-soft: hsl(150 56% 95%);
+  --info: hsl(211 92% 52%);
+  --shadow: 0 1px 2px hsl(214 30% 16% / .05), 0 8px 24px hsl(214 30% 16% / .06);
+  --shadow-lg: 0 12px 40px hsl(214 30% 16% / .16);
+  --radius: 16px;
+  --radius-s: 12px;
+  --tab-h: 64px;
+  --side-w: 248px;
+  --maxw: 1180px;
+  --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "맑은 고딕", "Malgun Gothic", sans-serif;
+}
+[data-theme="dark"]{
+  --brand: hsl(211 96% 64%);
+  --brand-d: hsl(211 96% 70%);
+  --brand-soft: hsl(211 50% 18%);
+  --ink: hsl(210 30% 94%);
+  --ink-2: hsl(212 16% 70%);
+  --ink-3: hsl(212 14% 54%);
+  --bg: hsl(216 28% 10%);
+  --surface: hsl(216 24% 14%);
+  --surface-2: hsl(216 22% 17%);
+  --line: hsl(216 18% 24%);
+  --line-2: hsl(216 16% 30%);
+  --danger: hsl(2 84% 64%);
+  --danger-soft: hsl(2 50% 22%);
+  --warn: hsl(38 92% 60%);
+  --warn-soft: hsl(38 40% 22%);
+  --safe: hsl(150 60% 54%);
+  --safe-soft: hsl(150 36% 20%);
+  --shadow: 0 1px 2px hsl(0 0% 0% / .3), 0 8px 24px hsl(0 0% 0% / .35);
+  --shadow-lg: 0 16px 48px hsl(0 0% 0% / .55);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--ink);
+  font-size:15px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+input,select,textarea{font-family:inherit;font-size:15px}
+a{color:var(--brand);text-decoration:none}
+::selection{background:var(--brand);color:#fff}
+.hidden{display:none !important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ===== App shell ===== */
+.app{display:flex;min-height:100vh;min-height:100dvh}
+/* Sidebar (desktop) */
+.sidebar{
+  width:var(--side-w);flex:0 0 var(--side-w);
+  background:var(--surface);border-right:1px solid var(--line);
+  position:sticky;top:0;height:100vh;height:100dvh;
+  display:flex;flex-direction:column;padding:18px 14px;gap:4px;z-index:30;
+}
+.brand{display:flex;align-items:center;gap:10px;padding:8px 10px 16px}
+.brand .logo{
+  width:38px;height:38px;border-radius:11px;flex:0 0 38px;
+  background:linear-gradient(135deg,var(--brand),var(--brand-d));
+  display:grid;place-items:center;color:#fff;position:relative;overflow:hidden;
+}
+.brand .logo svg{width:22px;height:22px}
+.brand b{font-size:17px;font-weight:800;letter-spacing:-.02em;display:block}
+.brand span{font-size:11px;color:var(--ink-3);font-weight:600}
+.nav-item{
+  display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:11px;
+  color:var(--ink-2);font-weight:600;font-size:14.5px;width:100%;text-align:left;
+  transition:background .15s,color .15s;position:relative;
+}
+.nav-item svg{width:21px;height:21px;flex:0 0 21px}
+.nav-item:hover{background:var(--surface-2)}
+.nav-item.active{background:var(--brand-soft);color:var(--brand-d)}
+.nav-item .badge{margin-left:auto;background:var(--danger);color:#fff;font-size:11px;font-weight:800;min-width:19px;height:19px;border-radius:10px;display:grid;place-items:center;padding:0 5px}
+.side-foot{margin-top:auto;padding:10px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3);line-height:1.45}
+.side-foot .data-pill{display:inline-flex;align-items:center;gap:5px;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:4px 8px;margin-bottom:6px;font-weight:700;color:var(--ink-2)}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--safe);box-shadow:0 0 0 0 var(--safe);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 hsl(150 62% 40% / .5)}70%{box-shadow:0 0 0 7px hsl(150 62% 40% / 0)}100%{box-shadow:0 0 0 0 hsl(150 62% 40% / 0)}}
+
+/* Main */
+.main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  position:sticky;top:0;z-index:20;
+  background:hsl(210 36% 97% / .82);backdrop-filter:saturate(180%) blur(16px);
+  -webkit-backdrop-filter:saturate(180%) blur(16px);
+  border-bottom:1px solid var(--line);
+  display:flex;align-items:center;gap:12px;padding:12px 22px;
+}
+[data-theme="dark"] .topbar{background:hsl(216 28% 10% / .82)}
+.topbar h1{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0}
+.topbar .sub{font-size:12px;color:var(--ink-3);font-weight:600;margin-top:1px}
+.topbar .spacer{flex:1}
+.icon-btn{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:var(--ink-2);border:1px solid var(--line);background:var(--surface);transition:transform .12s,background .15s}
+.icon-btn:active{transform:scale(.94)}
+.icon-btn:hover{background:var(--surface-2)}
+.icon-btn svg{width:20px;height:20px}
+.icon-btn .badge{position:absolute;top:-4px;right:-4px;background:var(--danger);color:#fff;font-size:10px;font-weight:800;min-width:17px;height:17px;border-radius:9px;display:grid;place-items:center;padding:0 4px}
+.icon-btn.rel{position:relative}
+.menu-btn{display:none}
+
+.content{padding:22px;max-width:var(--maxw);width:100%;margin:0 auto;flex:1}
+.view{animation:fade .28s ease}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ===== Cards / generic ===== */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-p{padding:18px}
+.grid{display:grid;gap:14px}
+.section-head{display:flex;align-items:center;gap:10px;margin:6px 2px 12px}
+.section-head h2{font-size:17px;font-weight:800;letter-spacing:-.02em;margin:0}
+.section-head .more{margin-left:auto;font-size:13px;font-weight:700;color:var(--brand)}
+.muted{color:var(--ink-3)}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:700;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);transition:all .14s;white-space:nowrap}
+.chip:active{transform:scale(.95)}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip-row{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:none}
+.chip-row::-webkit-scrollbar{display:none}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:46px;padding:0 18px;border-radius:var(--radius-s);font-weight:700;font-size:15px;background:var(--brand);color:#fff;transition:transform .12s,filter .15s;border:1px solid transparent}
+.btn:active{transform:scale(.97)}
+.btn:hover{filter:brightness(1.04)}
+.btn svg{width:19px;height:19px}
+.btn.ghost{background:var(--surface);color:var(--ink);border-color:var(--line-2)}
+.btn.ghost:hover{background:var(--surface-2)}
+.btn.danger{background:var(--danger)}
+.btn.sm{height:38px;padding:0 13px;font-size:13.5px;border-radius:10px}
+.btn.full{width:100%}
+.btn:disabled{opacity:.4;pointer-events:none}
+
+/* Risk badges */
+.badge-risk{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.badge-risk svg{width:13px;height:13px}
+.r-high{background:var(--danger-soft);color:var(--danger)}
+.r-mid{background:var(--warn-soft);color:hsl(33 90% 38%)}
+[data-theme="dark"] .r-mid{color:var(--warn)}
+.r-low{background:var(--safe-soft);color:var(--safe)}
+.r-info{background:var(--brand-soft);color:var(--brand-d)}
+.tag{display:inline-block;padding:3px 9px;border-radius:7px;font-size:11.5px;font-weight:700;background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2)}
+.tag.intl{background:hsl(270 60% 96%);color:hsl(270 50% 45%);border-color:hsl(270 50% 90%)}
+[data-theme="dark"] .tag.intl{background:hsl(270 30% 24%);color:hsl(270 60% 78%);border-color:hsl(270 30% 34%)}
+.tag.dom{background:hsl(211 80% 96%);color:var(--brand-d);border-color:hsl(211 70% 90%)}
+[data-theme="dark"] .tag.dom{background:hsl(211 40% 24%);color:var(--brand-d);border-color:hsl(211 30% 34%)}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.kpi{padding:16px 16px 15px;cursor:pointer;transition:transform .14s, box-shadow .18s}
+.kpi:active{transform:scale(.98)}
+.kpi .k-top{display:flex;align-items:center;gap:8px;color:var(--ink-3);font-size:12.5px;font-weight:700}
+.kpi .k-top .dot{width:9px;height:9px;border-radius:3px}
+.kpi .k-num{font-size:30px;font-weight:800;letter-spacing:-.03em;margin:8px 0 2px;font-variant-numeric:tabular-nums}
+.kpi .k-sub{font-size:12px;color:var(--ink-3);font-weight:600}
+.kpi .k-sub b{color:var(--safe);font-weight:800}
+.kpi .k-sub b.up{color:var(--danger)}
+
+/* Recall list item */
+.recall{display:flex;gap:13px;padding:15px;align-items:flex-start;border-bottom:1px solid var(--line);cursor:pointer;transition:background .14s}
+.recall:last-child{border-bottom:none}
+.recall:hover{background:var(--surface-2)}
+.recall:active{background:var(--surface-2)}
+.r-thumb{width:50px;height:50px;flex:0 0 50px;border-radius:12px;display:grid;place-items:center;font-size:24px;background:var(--surface-2);border:1px solid var(--line)}
+.r-body{flex:1;min-width:0}
+.r-body .r-cat{font-size:11.5px;font-weight:700;color:var(--ink-3);margin-bottom:2px}
+.r-body .r-name{font-size:15px;font-weight:700;letter-spacing:-.01em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.r-body .r-meta{font-size:12.5px;color:var(--ink-2);margin-top:3px;display:flex;gap:7px;flex-wrap:wrap;align-items:center}
+.r-body .r-rsn{font-size:12.5px;color:var(--ink-2);margin-top:5px;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.r-right{display:flex;flex-direction:column;align-items:flex-end;gap:7px;flex:0 0 auto}
+.star{color:var(--ink-3);transition:transform .12s,color .14s}
+.star:active{transform:scale(1.3)}
+.star.on{color:var(--warn)}
+.star svg{width:20px;height:20px}
+
+/* Toolbar */
+.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.search{flex:1;min-width:160px;display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--line-2);border-radius:12px;padding:0 14px;height:46px}
+.search svg{width:19px;height:19px;color:var(--ink-3);flex:0 0 19px}
+.search input{border:none;background:none;outline:none;flex:1;color:var(--ink);min-width:0}
+.select{height:46px;border:1px solid var(--line-2);background:var(--surface);border-radius:12px;padding:0 12px;color:var(--ink);font-weight:600;cursor:pointer;max-width:100%}
+
+/* Modal / sheet */
+.scrim{position:fixed;inset:0;background:hsl(214 30% 16% / .42);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:60;display:flex;align-items:flex-end;justify-content:center;animation:fade .2s;padding:0}
+.scrim.center{align-items:center;padding:18px}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:22px 22px 0 0;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:slideUp .3s cubic-bezier(.2,.8,.2,1)}
+.scrim.center .sheet{border-radius:22px;max-height:88vh;animation:popIn .25s cubic-bezier(.2,.8,.2,1)}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
+@keyframes popIn{from{transform:scale(.94);opacity:0}to{transform:none;opacity:1}}
+.sheet-grip{width:40px;height:5px;border-radius:3px;background:var(--line-2);margin:10px auto 2px}
+.sheet-head{display:flex;align-items:center;gap:10px;padding:12px 20px 14px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:2}
+.sheet-head h3{font-size:18px;font-weight:800;margin:0;flex:1;letter-spacing:-.02em}
+.sheet-body{padding:18px 20px 26px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;height:46px;border:1px solid var(--line-2);border-radius:11px;padding:0 13px;background:var(--surface-2);color:var(--ink);outline:none;transition:border .15s}
+.field textarea{height:auto;padding:11px 13px;resize:vertical;min-height:64px}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--brand)}
+
+/* Scan */
+.scanner{position:relative;border-radius:20px;overflow:hidden;background:#0c1420;aspect-ratio:1/1;max-width:380px;margin:0 auto;display:grid;place-items:center}
+.scanner video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.scan-frame{position:relative;width:64%;aspect-ratio:1.4/1;z-index:2}
+.scan-frame i{position:absolute;width:30px;height:30px;border:3px solid #fff;opacity:.92}
+.scan-frame i:nth-child(1){top:0;left:0;border-right:none;border-bottom:none;border-radius:8px 0 0 0}
+.scan-frame i:nth-child(2){top:0;right:0;border-left:none;border-bottom:none;border-radius:0 8px 0 0}
+.scan-frame i:nth-child(3){bottom:0;left:0;border-right:none;border-top:none;border-radius:0 0 0 8px}
+.scan-frame i:nth-child(4){bottom:0;right:0;border-left:none;border-top:none;border-radius:0 0 8px 0}
+.scan-laser{position:absolute;left:6%;right:6%;height:2.5px;background:linear-gradient(90deg,transparent,hsl(150 80% 60%),transparent);box-shadow:0 0 12px hsl(150 80% 60%);top:50%;z-index:3;animation:scanmove 2.4s ease-in-out infinite}
+@keyframes scanmove{0%,100%{top:18%}50%{top:82%}}
+.scan-hint{position:absolute;bottom:14px;left:0;right:0;text-align:center;color:#fff;font-size:13px;font-weight:600;z-index:4;text-shadow:0 1px 4px rgba(0,0,0,.6)}
+.scan-cam-off{color:#9fb0c4;text-align:center;z-index:2;padding:20px}
+.scan-cam-off svg{width:44px;height:44px;margin-bottom:10px;opacity:.7}
+
+/* Result card */
+.result{text-align:center;padding:8px 4px 4px}
+.result .ring{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;margin:0 auto 14px;position:relative}
+.result .ring svg{width:48px;height:48px}
+.result.high .ring{background:var(--danger-soft);color:var(--danger)}
+.result.mid .ring{background:var(--warn-soft);color:var(--warn)}
+.result.low .ring{background:var(--safe-soft);color:var(--safe)}
+.result h2{font-size:24px;font-weight:800;margin:4px 0 4px;letter-spacing:-.02em}
+.result .verdict-sub{color:var(--ink-2);font-size:14px;margin-bottom:6px}
+
+.kv{display:flex;justify-content:space-between;gap:14px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--ink-3);font-weight:600;flex:0 0 auto}
+.kv .v{color:var(--ink);font-weight:700;text-align:right}
+
+/* Bars / charts */
+.bar-row{display:flex;align-items:center;gap:11px;padding:7px 0}
+.bar-row .lbl{flex:0 0 92px;font-size:13px;font-weight:600;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar-track{flex:1;height:11px;border-radius:6px;background:var(--surface-2);overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--brand),var(--brand-d));transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.bar-row .val{flex:0 0 auto;font-size:12.5px;font-weight:800;color:var(--ink-2);font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--ink-2);font-weight:600}
+.legend i{width:11px;height:11px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:-1px}
+
+/* Empty state */
+.empty{text-align:center;padding:42px 20px;color:var(--ink-3)}
+.empty svg{width:50px;height:50px;opacity:.5;margin-bottom:12px}
+.empty b{display:block;color:var(--ink-2);font-size:15px;margin-bottom:4px}
+
+/* Toast */
+#toast{position:fixed;left:50%;bottom:calc(var(--tab-h) + 18px);transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:12px 18px;border-radius:13px;font-weight:700;font-size:14px;z-index:90;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.2,.8,.2,1);max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+[data-theme="dark"] #toast{background:var(--surface-2);color:var(--ink);border:1px solid var(--line-2)}
+
+/* Notification item */
+.noti{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--line);cursor:pointer;position:relative;transition:background .14s}
+.noti:hover{background:var(--surface-2)}
+.noti.unread{background:var(--brand-soft)}
+.noti.unread::before{content:"";position:absolute;left:6px;top:50%;width:7px;height:7px;border-radius:50%;background:var(--brand);transform:translateY(-50%)}
+.noti .n-ic{width:40px;height:40px;flex:0 0 40px;border-radius:11px;display:grid;place-items:center}
+.noti .n-body{flex:1;min-width:0}
+.noti .n-title{font-weight:700;font-size:14px;margin-bottom:2px}
+.noti .n-desc{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.noti .n-time{font-size:11px;color:var(--ink-3);margin-top:3px}
+
+/* Stepper */
+.steps{display:flex;gap:6px;margin-bottom:16px}
+.steps .s{flex:1;height:5px;border-radius:3px;background:var(--line)}
+.steps .s.done{background:var(--brand)}
+
+/* Pill toggle */
+.seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px}
+.seg button{padding:7px 14px;border-radius:8px;font-weight:700;font-size:13px;color:var(--ink-2)}
+.seg button.on{background:var(--surface);color:var(--brand-d);box-shadow:var(--shadow)}
+
+/* Stat tiles */
+.stat-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat-tiles .t{padding:13px;border-radius:13px;background:var(--surface-2);border:1px solid var(--line);text-align:center}
+.stat-tiles .t .n{font-size:22px;font-weight:800;letter-spacing:-.02em}
+.stat-tiles .t .l{font-size:11.5px;color:var(--ink-3);font-weight:600;margin-top:2px}
+
+/* donut */
+.donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;justify-content:center}
+.donut{flex:0 0 auto}
+
+/* ===== Bottom tabbar (mobile) ===== */
+.tabbar{display:none}
+
+/* ===== Responsive ===== */
+@media (max-width: 860px){
+  .sidebar{display:none}
+  .menu-btn{display:grid}
+  .content{padding:16px 14px calc(var(--tab-h) + 22px)}
+  .topbar{padding:11px 14px}
+  .topbar h1{font-size:17px}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);gap:11px}
+  .kpi .k-num{font-size:26px}
+  .stat-tiles{gap:8px}
+  .stat-tiles .t .n{font-size:19px}
+  .tabbar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;height:calc(var(--tab-h) + env(safe-area-inset-bottom));
+    padding-bottom:env(safe-area-inset-bottom);
+    background:hsl(210 36% 97% / .92);backdrop-filter:saturate(180%) blur(18px);
+    -webkit-backdrop-filter:saturate(180%) blur(18px);
+    border-top:1px solid var(--line);z-index:50;align-items:stretch;
+  }
+  [data-theme="dark"] .tabbar{background:hsl(216 28% 10% / .92)}
+  .tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:var(--ink-3);font-size:10.5px;font-weight:700;position:relative}
+  .tab svg{width:23px;height:23px}
+  .tab.active{color:var(--brand)}
+  .tab .badge{position:absolute;top:7px;left:calc(50% + 8px);background:var(--danger);color:#fff;font-size:9px;font-weight:800;min-width:15px;height:15px;border-radius:8px;display:grid;place-items:center;padding:0 3px}
+  .tab.scan-tab{transform:translateY(-10px)}
+  .tab.scan-tab .fab{width:54px;height:54px;border-radius:18px;background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#fff;display:grid;place-items:center;box-shadow:0 8px 20px hsl(211 92% 52% / .4)}
+  .tab.scan-tab .fab svg{width:26px;height:26px}
+  .tab.scan-tab span{margin-top:-3px}
+}
+@media (max-width:480px){
+  .kpi-grid{gap:9px}
+  .toolbar{gap:7px}
+  .search{height:44px}
+  .select{height:44px;font-size:13.5px}
+}
+@media (min-width:861px){
+  .mobile-only{display:none !important}
+}
+/* Drawer (mobile nav overflow) */
+.drawer-scrim{position:fixed;inset:0;background:hsl(214 30% 16% / .42);z-index:70;animation:fade .2s}
+.drawer{position:fixed;top:0;left:0;bottom:0;width:270px;max-width:82vw;background:var(--surface);z-index:71;padding:18px 14px;display:flex;flex-direction:column;gap:4px;animation:slideLeft .26s cubic-bezier(.2,.8,.2,1);box-shadow:var(--shadow-lg)}
+@keyframes slideLeft{from{transform:translateX(-100%)}to{transform:none}}
+</style>
+</head>
+<body data-theme="light">
+<div class="app">
+  <!-- ===== Sidebar (desktop) ===== -->
+  <aside class="sidebar" id="sidebar"></aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-btn" id="menuBtn" aria-label="메뉴">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <div>
+        <h1 id="pageTitle">홈</h1>
+        <div class="sub" id="pageSub">오늘의 리콜 현황</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn rel" id="searchTop" aria-label="검색">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      </button>
+      <button class="icon-btn rel" id="notiTop" aria-label="알림">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+        <span class="badge hidden" id="notiBadgeTop">0</span>
+      </button>
+      <button class="icon-btn" id="themeBtn" aria-label="다크모드">
+        <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </header>
+    <main class="content" id="content"></main>
+  </div>
+</div>
+
+<!-- ===== Bottom tabbar (mobile) ===== -->
+<nav class="tabbar" id="tabbar"></nav>
+
+<div id="modalRoot"></div>
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================================
+   리콜 레이더 v1 — 애플리케이션 로직
+   주의: 모든 리콜 데이터는 MOCK. 실 서비스는 KATS OpenAPI(15116894 등) 연동.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   1. MOCK 데이터 — KATS 응답 구조 모사
+   실 연동 시 fetchRecalls()만 교체. 응답 필드: RECALL_SEQ, PRODUCT_NM,
+   MODEL_NM, MAKER_NM, RECALL_RSN, RECALL_DT, KC_NO, RECALL_TYPE 등.
+   --------------------------------------------------------------------------- */
+const CATS = {
+  baby:   {name:"유아·어린이용품", icon:"🍼"},
+  elec:   {name:"전기·전자제품",   icon:"🔌"},
+  food:   {name:"식품접촉제품",   icon:"🍽️"},
+  cosmetic:{name:"화장품·생활화학",icon:"🧴"},
+  toy:    {name:"완구·놀이기구",   icon:"🧸"},
+  auto:   {name:"자동차·이동수단", icon:"🛴"},
+  textile:{name:"섬유·의류",       icon:"👕"},
+  furniture:{name:"가구·생활용품", icon:"🪑"},
+};
+const HAZARD = {
+  lead:"납 기준치 초과", phthalate:"프탈레이트 가소제 검출", fire:"화재·발화 위험",
+  shock:"감전 위험", choke:"질식·삼킴 위험", chem:"유해화학물질 검출",
+  burn:"화상 위험", fall:"넘어짐·추락 위험", cut:"베임·날카로움", sharp:"부품 이탈",
+  formaldehyde:"폼알데하이드 초과", cadmium:"카드뮴 초과"
+};
+// 위해등급: 3=위험(강제리콜), 2=주의, 1=경미 / origin: dom=국내, intl=국외
+function R(seq,cat,name,model,maker,hazardKey,grade,origin,dt,kc,action,recallType,country){
+  return {seq, cat, name, model, maker,
+    rsn: HAZARD[hazardKey]||hazardKey, hazardKey, grade, origin, dt,
+    kc: kc||null, action, recallType: recallType||(grade>=3?"강제리콜":"자발적리콜"),
+    country: country||(origin==="dom"?"대한민국":"EU"), barcode: 8800000000000 + seq*131 };
+}
+const RECALLS = [
+  R(101,"baby","뽀송 아기 물티슈 캡형","BW-220","해피베이비(주)","chem",3,"dom","2025-12-18","KC-B-2024-1182","제품 회수 및 전액 환불. 콜센터 1588-0000","강제리콜"),
+  R(102,"toy","말랑 슬라임 점토 세트","SL-RED-12","토이랜드","phthalate",3,"dom","2025-12-15","KC-Y-2024-0455","판매중단·회수. 구매처 환불"),
+  R(103,"elec","미니 가습기 USB형","HM-100","에어웰","fire",3,"dom","2025-12-12","KC-E-2024-2210","리튬배터리 발화 위험. 즉시 사용중지·회수"),
+  R(104,"baby","유아 보행기 라이트","WK-30","키즈모아","fall",2,"dom","2025-12-10","KC-B-2024-0921","브레이크 결함 부품 무상교체"),
+  R(105,"cosmetic","센텔라 수딩 미스트","CM-SOO-50","뷰티랩","chem",2,"dom","2025-12-08","KC-C-2024-3301","보존제 기준 초과. 환불 및 교환"),
+  R(106,"elec","무선 고속충전기 25W","PD-25W","파워샷","shock",3,"dom","2025-12-05","KC-E-2024-1990","절연 불량 감전 위험. 회수"),
+  R(107,"toy","자석 블록 200피스","MB-200","플레이큐브","choke",3,"dom","2025-12-03","KC-Y-2024-0712","자석 삼킴 위험. 회수·환불"),
+  R(108,"food","실리콘 이유식 스푼 세트","SP-BB-4","리틀스푼","chem",2,"dom","2025-12-01","KC-F-2024-0188","고온 용출 시험 부적합. 교환"),
+  R(109,"textile","아동 후드 집업","HZ-KID-7","코지키즈","cut",2,"dom","2025-11-28","KC-T-2024-0540","조임끈 안전기준 위반. 무상수선"),
+  R(110,"furniture","높이조절 책상 램프","DL-FLX","루멘하우스","shock",2,"dom","2025-11-25","KC-E-2024-2455","어댑터 과열. 무상교체"),
+  R(111,"baby","아기 욕조 폴딩형","BT-FOLD","버블베어","sharp",2,"dom","2025-11-22","KC-B-2024-1033","힌지 부품 이탈 위험. 회수"),
+  R(112,"cosmetic","수분 핸드크림 대용량","HC-500","모이스트","formaldehyde",2,"dom","2025-11-20","KC-C-2024-2890","폼알데하이드 검출. 회수·환불"),
+  R(113,"elec","전기 손난로 보조배터리","WP-HOT","따뜻쿵","fire",3,"dom","2025-11-18","KC-E-2024-2603","과충전 발화. 즉시 회수"),
+  R(114,"toy","공룡 피규어 12종","DN-12","쥬라기월드","lead",3,"dom","2025-11-15","KC-Y-2024-0388","도료 납 기준 초과. 회수"),
+  R(115,"auto","어린이 킥보드 3륜","KB-3W","롤링스타","fall",2,"dom","2025-11-12","KC-A-2024-0211","핸들 고정부 결함. 부품 교체"),
+  R(116,"food","밀폐용기 4종 세트","AT-SET4","프레시박스","chem",1,"dom","2025-11-10","KC-F-2024-0233","뚜껑 패킹 용출. 교환"),
+  R(117,"textile","극세사 담요","BL-MICRO","웜앤소프트","fire",2,"dom","2025-11-08","KC-T-2024-0611","방염 기준 미달. 회수"),
+  R(118,"baby","젖병 소독기 UV","UV-STER","퓨어맘","shock",2,"dom","2025-11-05","KC-B-2024-1201","누전 위험. 무상교체"),
+  R(119,"furniture","폴딩 매트 놀이방","PM-200","베이비존","phthalate",2,"dom","2025-11-02","KC-B-2024-0977","프탈레이트 검출. 회수"),
+  R(120,"cosmetic","어린이 치약 딸기맛","TP-KID","스마일덴","chem",2,"dom","2025-10-30","KC-C-2024-3110","불소 함량 기준 초과. 환불"),
+  R(121,"elec","멀티탭 6구 USB","MT-6U","플러그온","fire",3,"dom","2025-10-27","KC-E-2024-1755","과부하 발화. 회수"),
+  R(122,"toy","목재 쌓기 블록","WD-BLK","네이처토이","formaldehyde",2,"dom","2025-10-24","KC-Y-2024-0501","폼알데하이드 초과. 교환"),
+  R(123,"baby","아기 식탁의자","HC-BABY","먼치킨베어","fall",2,"dom","2025-10-21","KC-B-2024-1099","안전벨트 결함. 무상수리"),
+  R(124,"auto","전동 휠 보드","EW-PRO","스핀모빌","fire",3,"dom","2025-10-18","KC-A-2024-0177","배터리 발화. 즉시 회수"),
+  R(125,"food","유아 빨대컵","SC-300","베이비집","chem",1,"dom","2025-10-15","KC-F-2024-0290","실리콘 용출. 교환"),
+  // ===== 국외 리콜 (15040707 모사) =====
+  R(201,"baby","Soft Plush Bear","TB-EU-09","ToyMaker GmbH","choke",3,"intl","2025-12-16",null,"EU RAPEX 회수 통보. 눈 부품 이탈 삼킴 위험","강제리콜","EU(독일)"),
+  R(202,"cosmetic","Bright Skin Whitening Cream","WC-808","GlowCo","chem",3,"intl","2025-12-14",null,"수은 함량 기준 초과. US FDA 리콜","강제리콜","미국"),
+  R(203,"toy","Magnetic Building Tiles","MT-100","FunBlocks Ltd","choke",3,"intl","2025-12-11",null,"고자력 자석 삼킴 위험. CPSC 회수","강제리콜","미국"),
+  R(204,"elec","Travel Hair Dryer 1200W","HD-1200","HotAir Inc","fire",3,"intl","2025-12-09",null,"과열 화재 위험. EU RAPEX","강제리콜","EU(프랑스)"),
+  R(205,"baby","Baby Carrier Sling","BC-WRAP","CarryLove","fall",3,"intl","2025-12-06",null,"버클 파손 낙상 위험. CPSC 리콜","강제리콜","미국"),
+  R(206,"cosmetic","Charm Bracelet Set","CB-SLV","FashionLine","lead",3,"intl","2025-12-04",null,"납 함량 기준 905배 초과. EU RAPEX","강제리콜","EU(이탈리아)"),
+  R(207,"toy","Slime Putty Glow","SL-GLOW","SlimeWorld","chem",2,"intl","2025-12-02",null,"붕소 기준 초과. EU RAPEX","자발적리콜","EU(폴란드)"),
+  R(208,"elec","Portable Power Bank 20000","PB-20K","ChargeMax","fire",3,"intl","2025-11-29",null,"리튬셀 발화. CPSC 회수","강제리콜","미국"),
+  R(209,"textile","Kids Pajama Set","PJ-K-110","SleepWell","fire",2,"intl","2025-11-26",null,"방염성 기준 미달. CPSC","자발적리콜","미국"),
+  R(210,"toy","Wooden Train Set","WT-30","HappyWood","lead",3,"intl","2025-11-23",null,"도료 카드뮴 검출. EU RAPEX","강제리콜","EU(체코)"),
+  R(211,"baby","Pacifier Clip Wood","PC-WD","NatureBaby","choke",2,"intl","2025-11-19",null,"부품 이탈 질식 위험. EU","자발적리콜","EU(스페인)"),
+  R(212,"cosmetic","Nail Polish Kids","NP-KID","ColorFun","phthalate",2,"intl","2025-11-16",null,"프탈레이트 검출. EU RAPEX","자발적리콜","EU(독일)"),
+  R(213,"elec","LED String Lights","LL-50","BrightDeco","shock",2,"intl","2025-11-13",null,"절연 불량 감전. EU RAPEX","자발적리콜","EU(네덜란드)"),
+  R(214,"auto","E-Scooter Folding","ES-FOLD","UrbanRide","fire",3,"intl","2025-11-09",null,"배터리 발화. CPSC 회수","강제리콜","미국"),
+  R(215,"toy","Squishy Animal Toys","SQ-ANI","CuteToys","chem",2,"intl","2025-11-06",null,"화학물질 방출. EU RAPEX","자발적리콜","EU(프랑스)"),
+  R(216,"baby","Bath Thermometer Duck","BT-DUCK","SafeBath","chem",1,"intl","2025-11-03",null,"방수 불량 화학 노출. EU","자발적리콜","EU(독일)"),
+  R(217,"furniture","Folding Step Stool","SS-FOLD","HomeHelp","fall",2,"intl","2025-10-31",null,"하중 결함 추락. CPSC","자발적리콜","미국"),
+  R(218,"cosmetic","Sunscreen Spray Kids","SP-K50","SunGuard","chem",2,"intl","2025-10-28",null,"벤젠 검출. US FDA","강제리콜","미국"),
+  R(219,"toy","Foam Dart Blaster","FD-X","BlastFun","cut",2,"intl","2025-10-25",null,"발사체 안전기준 위반. EU","자발적리콜","EU(영국)"),
+  R(220,"elec","Smart Plug Wifi","SP-WIFI","HomeIoT","fire",2,"intl","2025-10-22",null,"과열 위험. CPSC","자발적리콜","미국"),
+  R(221,"baby","Teething Necklace","TN-AMBER","BabyChew","choke",3,"intl","2025-10-19",null,"줄 끊김 질식 위험. CPSC","강제리콜","미국"),
+  R(222,"textile","Winter Gloves Kids","GL-K","WarmHands","chem",1,"intl","2025-10-16",null,"염료 화학물질. EU","자발적리콜","EU(이탈리아)"),
+  R(223,"food","Silicone Lunch Box","LB-SIL","EcoMeal","chem",1,"intl","2025-10-13",null,"실리콘 용출 초과. EU","자발적리콜","EU(독일)"),
+  R(224,"toy","Plastic Yo-Yo LED","YO-LED","SpinToys","sharp",1,"intl","2025-10-10",null,"부품 파손. EU","자발적리콜","EU(폴란드)"),
+  R(225,"auto","Kids Bicycle 16inch","BK-16","RideKids","fall",2,"intl","2025-10-07",null,"브레이크 결함. CPSC","자발적리콜","미국"),
+  R(226,"furniture","Drawer Anchor Kit","DA-KIT","SafeHome","sharp",1,"intl","2025-10-04",null,"고정력 부족 전도 위험. CPSC","자발적리콜","미국"),
+  R(227,"cosmetic","Baby Powder Talc","BP-TALC","PureSkin","chem",3,"intl","2025-10-01",null,"석면 검출. US FDA","강제리콜","미국"),
+];
+// fetchRecalls: 실 서비스에서는 KATS OpenAPI 호출. 여기서는 mock 반환.
+function fetchRecalls(){ /* TODO(prod): GET data.go.kr/15116894/openApi?serviceKey=... */ return RECALLS; }
+
+/* 직구 KC 사전체크 룰셋 (mock 규칙엔진) */
+const KC_RULES = [
+  {kw:["bracelet","jewel","목걸이","팔찌","necklace"], cat:"cosmetic", risk:3, msg:"장신구류 — 중금속(납·카드뮴) 위해 빈발. 국내 KC 인증 필수 품목."},
+  {kw:["toy","블록","slime","슬라임","magnet","자석","putty"], cat:"toy", risk:3, msg:"완구류 — 어린이제품 안전특별법 KC 의무인증 대상. 자석·화학물질 위해 주의."},
+  {kw:["charger","power","battery","충전","배터리","파워뱅크","powerbank"], cat:"elec", risk:3, msg:"리튬배터리 제품 — 발화·감전 위험. 전기용품 안전인증(KC) 필수."},
+  {kw:["cosmetic","cream","화장품","크림","로션","sunscreen"], cat:"cosmetic", risk:2, msg:"화장품 — 식약처 수입 신고 대상. 미인증 성분(수은·벤젠) 위해 사례."},
+  {kw:["baby","유아","carrier","pacifier","아기"], cat:"baby", risk:3, msg:"유아용품 — KC 의무인증 + 어린이제품 안전기준 적용 대상."},
+  {kw:["scooter","kickboard","킥보드","스쿠터","wheel"], cat:"auto", risk:2, msg:"전동이동수단 — 전기용품 KC 인증 및 배터리 안전 확인 필요."},
+];
+
+/* ---------------------------------------------------------------------------
+   2. 상태(state) + localStorage 영속
+   --------------------------------------------------------------------------- */
+const LS_KEY = "recallRadar.v1";
+const todayStr = "2025-12-19"; // 데모 기준일 (mock 데이터 최신일 다음날)
+const defaultState = {
+  view: "home",
+  theme: "light",
+  myProducts: [],          // {id,name,model,maker,cat,date,recallSeq|null}
+  favorites: [],           // recall seq[]
+  notifications: [],       // {id,seq,title,desc,time,read,kind}
+  scanHistory: [],         // {seq|null, query, ts, verdict}
+  subscriptions: ["baby","toy"], // 구독 카테고리
+  seenDetail: [],          // 최근 본 recall seq
+  feedSort: "date",
+  feedFilters: {cat:"all", grade:"all", origin:"all", type:"all"},
+  feedQuery: "",
+  onboardDone: false,
+};
+let S = loadState();
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw){ return Object.assign({}, defaultState, JSON.parse(raw)); }
+  }catch(e){ console.warn("state load fail", e); }
+  return JSON.parse(JSON.stringify(defaultState));
+}
+function save(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(S)); }catch(e){ console.warn(e); } }
+
+// 데모 시드: 최초 실행 시 구매이력·알림 일부 주입(실 동작 증명용, 매칭 알림 생성)
+function seedIfFirst(){
+  if(S.onboardDone) return;
+  S.myProducts = [
+    {id:uid(), name:"뽀송 아기 물티슈 캡형", model:"BW-220", maker:"해피베이비(주)", cat:"baby", date:"2025-11-30"},
+    {id:uid(), name:"미니 가습기 USB형", model:"HM-100", maker:"에어웰", cat:"elec", date:"2025-10-12"},
+    {id:uid(), name:"순면 라운드 티셔츠", model:"PT-BASIC", maker:"데일리웨어", cat:"textile", date:"2025-09-20"},
+  ];
+  S.onboardDone = true;
+  recomputeMatches(true); // 구매이력 ↔ 리콜 매칭 → 알림 생성
+  save();
+}
+let _uid = Date.now();
+function uid(){ return "id" + (_uid++).toString(36); }
+
+/* ---------------------------------------------------------------------------
+   3. 도메인 로직 — 매칭 / 위해등급 / 통계
+   --------------------------------------------------------------------------- */
+function recallBySeq(seq){ return RECALLS.find(r=>r.seq===seq) || null; }
+function daysAgo(dt){
+  const a = new Date(todayStr), b = new Date(dt);
+  return Math.round((a-b)/86400000);
+}
+function relTime(dt){
+  const d = daysAgo(dt);
+  if(d<=0) return "오늘";
+  if(d===1) return "어제";
+  if(d<7) return d+"일 전";
+  if(d<30) return Math.floor(d/7)+"주 전";
+  return Math.floor(d/30)+"개월 전";
+}
+function gradeLabel(g){ return g>=3?"위험":g===2?"주의":"경미"; }
+function gradeClass(g){ return g>=3?"r-high":g===2?"r-mid":"r-low"; }
+
+// 구매이력 ↔ 리콜 매칭(모델·제품명 유사) → 알림 생성
+function matchProductToRecall(p){
+  // 정확 모델 매칭 우선
+  let m = RECALLS.find(r=> r.model && p.model && r.model.toUpperCase()===p.model.toUpperCase() && sameOrClose(r.name,p.name));
+  if(m) return m;
+  // 제품명 완전일치
+  m = RECALLS.find(r=> r.name===p.name && r.maker===p.maker);
+  return m||null;
+}
+function sameOrClose(a,b){
+  if(!a||!b) return false;
+  a=a.replace(/\s/g,""); b=b.replace(/\s/g,"");
+  return a===b || a.includes(b) || b.includes(a);
+}
+function recomputeMatches(silent){
+  let newCount=0;
+  S.myProducts.forEach(p=>{
+    const m = matchProductToRecall(p);
+    p.recallSeq = m? m.seq : null;
+    if(m){
+      const exists = S.notifications.some(n=>n.seq===m.seq && n.kind==="match" && n.pid===p.id);
+      if(!exists){
+        S.notifications.unshift({
+          id:uid(), seq:m.seq, pid:p.id, kind:"match",
+          title:`내 제품 리콜 경보 — ${p.name}`,
+          desc:`${m.rsn} · ${m.recallType} · 등급 ${gradeLabel(m.grade)}`,
+          time:Date.now()-newCount*60000, read:false
+        });
+        newCount++;
+      }
+    }
+  });
+  // 구독 카테고리 신규 리콜 알림(데모: 최근 3건)
+  S.subscriptions.forEach(c=>{
+    const recents = RECALLS.filter(r=>r.cat===c).sort((a,b)=>b.dt.localeCompare(a.dt)).slice(0,2);
+    recents.forEach(r=>{
+      const exists = S.notifications.some(n=>n.seq===r.seq && n.kind==="sub");
+      if(!exists){
+        S.notifications.push({
+          id:uid(), seq:r.seq, kind:"sub",
+          title:`구독 카테고리 신규 리콜 — ${CATS[c].name}`,
+          desc:`${r.name} · ${r.rsn}`, time:Date.now()-3600000-newCount*120000, read:false
+        });
+      }
+    });
+  });
+  if(!silent) save();
+  return newCount;
+}
+function unreadCount(){ return S.notifications.filter(n=>!n.read).length; }
+function myMatchedCount(){ return S.myProducts.filter(p=>p.recallSeq).length; }
+
+// 통계 집계
+function stats(){
+  const total = RECALLS.length;
+  const dom = RECALLS.filter(r=>r.origin==="dom").length;
+  const intl = total-dom;
+  const high = RECALLS.filter(r=>r.grade>=3).length;
+  const recent7 = RECALLS.filter(r=>daysAgo(r.dt)<=7).length;
+  const byCat = {};
+  Object.keys(CATS).forEach(c=> byCat[c]=RECALLS.filter(r=>r.cat===c).length);
+  const byGrade = {3:high, 2:RECALLS.filter(r=>r.grade===2).length, 1:RECALLS.filter(r=>r.grade===1).length};
+  // 월별
+  const byMonth = {};
+  RECALLS.forEach(r=>{ const m=r.dt.slice(0,7); byMonth[m]=(byMonth[m]||0)+1; });
+  // 위해유형
+  const byHazard = {};
+  RECALLS.forEach(r=>{ byHazard[r.rsn]=(byHazard[r.rsn]||0)+1; });
+  return {total,dom,intl,high,recent7,byCat,byGrade,byMonth,byHazard};
+}
+
+/* ---------------------------------------------------------------------------
+   4. 아이콘 + 토스트 + 모달 헬퍼
+   --------------------------------------------------------------------------- */
+const ICONS = {
+  home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>',
+  scan:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 9v6M10 9v6M13 9v6M16 9v6"/>',
+  feed:'<path d="M4 6h16M4 12h16M4 18h10"/>',
+  mine:'<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+  noti:'<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+  check:'<path d="M5 13l4 4L19 7"/>',
+  customs:'<path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/>',
+  stats:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  shield:'<path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/>',
+  alert:'<path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>',
+  star:'<path d="M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 18l-6.3 3.2L7 14.2l-5-4.8 7-.9z"/>',
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  download:'<path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16"/>',
+  share:'<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+  trash:'<path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/>',
+  chevron:'<path d="m9 18 6-6-6-6"/>',
+};
+function svg(name, sw){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw||2}" stroke-linecap="round" stroke-linejoin="round">${ICONS[name]||""}</svg>`; }
+
+let toastT;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("show"), 2200);
+}
+function closeModal(){ document.getElementById("modalRoot").innerHTML=""; document.body.style.overflow=""; }
+function openModal(html, center){
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `<div class="scrim ${center?'center':''}" id="scrim">
+    <div class="sheet" onclick="event.stopPropagation()">${center?'':'<div class="sheet-grip"></div>'}${html}</div></div>`;
+  document.body.style.overflow="hidden";
+  document.getElementById("scrim").addEventListener("click", closeModal);
+}
+
+/* ---------------------------------------------------------------------------
+   5. 네비게이션 / 셸 렌더
+   --------------------------------------------------------------------------- */
+const NAV = [
+  {id:"home",  label:"홈",       sub:"오늘의 리콜 현황"},
+  {id:"scan",  label:"스캔",     sub:"바코드로 즉시 확인"},
+  {id:"feed",  label:"리콜 피드", sub:"검색 · 필터 · 정렬"},
+  {id:"mine",  label:"내 제품",  sub:"구매이력 · 리콜 매칭"},
+  {id:"noti",  label:"알림센터", sub:"개인화 리콜 알림"},
+  {id:"customs",label:"직구 KC체크",sub:"수령 전 사전 검증"},
+  {id:"stats", label:"통계·분포", sub:"카테고리 · 기간 · 등급"},
+];
+const TABS = ["home","feed","scan","noti","mine"]; // 모바일 바텀탭 (스캔 중심)
+
+function renderSidebar(){
+  const side = document.getElementById("sidebar");
+  side.innerHTML = `
+    <div class="brand">
+      <div class="logo">${svg("scan",2)}</div>
+      <div><b>리콜 레이더</b><span>Recall Radar</span></div>
+    </div>
+    ${NAV.map(n=>{
+      const badge = n.id==="noti" && unreadCount()>0 ? `<span class="badge">${unreadCount()}</span>`
+                  : n.id==="mine" && myMatchedCount()>0 ? `<span class="badge">${myMatchedCount()}</span>` : "";
+      return `<button class="nav-item ${S.view===n.id?'active':''}" data-nav="${n.id}">${svg(n.id)}<span>${n.label}</span>${badge}</button>`;
+    }).join("")}
+    <div class="side-foot">
+      <span class="data-pill"><span class="live-dot"></span>KATS 공공데이터 연동</span>
+      데이터셋 15116894 · 15040707<br>현재 데모: mock ${RECALLS.length}건<br>(키 발급 후 실시간 API)
+    </div>`;
+  side.querySelectorAll("[data-nav]").forEach(b=> b.onclick=()=>go(b.dataset.nav));
+}
+function renderTabbar(){
+  const bar = document.getElementById("tabbar");
+  bar.innerHTML = TABS.map(id=>{
+    const n = NAV.find(x=>x.id===id);
+    if(id==="scan") return `<button class="tab scan-tab ${S.view==='scan'?'active':''}" data-nav="scan"><span class="fab">${svg("scan",2.2)}</span><span>스캔</span></button>`;
+    const badge = id==="noti" && unreadCount()>0 ? `<span class="badge">${unreadCount()}</span>`
+                : id==="mine" && myMatchedCount()>0 ? `<span class="badge">${myMatchedCount()}</span>` : "";
+    return `<button class="tab ${S.view===id?'active':''}" data-nav="${id}">${svg(id)}<span>${n.label}</span>${badge}</button>`;
+  }).join("");
+  bar.querySelectorAll("[data-nav]").forEach(b=> b.onclick=()=>go(b.dataset.nav));
+}
+function openDrawer(){
+  const root = document.getElementById("modalRoot");
+  root.innerHTML = `<div class="drawer-scrim" id="dscrim"></div>
+    <div class="drawer">
+      <div class="brand"><div class="logo">${svg("scan",2)}</div><div><b>리콜 레이더</b><span>Recall Radar</span></div></div>
+      ${NAV.map(n=>`<button class="nav-item ${S.view===n.id?'active':''}" data-dnav="${n.id}">${svg(n.id)}<span>${n.label}</span>${n.id==="noti"&&unreadCount()>0?`<span class="badge">${unreadCount()}</span>`:""}</button>`).join("")}
+      <div class="side-foot"><span class="data-pill"><span class="live-dot"></span>KATS 데이터 mock ${RECALLS.length}건</span>15116894·15040707·15085894</div>
+    </div>`;
+  document.body.style.overflow="hidden";
+  document.getElementById("dscrim").onclick=closeModal;
+  root.querySelectorAll("[data-dnav]").forEach(b=> b.onclick=()=>{ closeModal(); go(b.dataset.dnav); });
+}
+
+function go(view){
+  S.view = view; save();
+  closeModal();
+  window.scrollTo(0,0);
+  render();
+}
+function render(){
+  const n = NAV.find(x=>x.id===S.view) || NAV[0];
+  document.getElementById("pageTitle").textContent = n.label;
+  document.getElementById("pageSub").textContent = n.sub;
+  renderSidebar(); renderTabbar();
+  const nb = document.getElementById("notiBadgeTop");
+  if(unreadCount()>0){ nb.textContent=unreadCount(); nb.classList.remove("hidden"); } else nb.classList.add("hidden");
+  const c = document.getElementById("content");
+  c.innerHTML = VIEWS[S.view] ? VIEWS[S.view]() : "<div class='empty'>준비 중</div>";
+  if(BIND[S.view]) BIND[S.view](c);
+}
+
+/* ---------------------------------------------------------------------------
+   6. 공통 컴포넌트 렌더
+   --------------------------------------------------------------------------- */
+function riskBadge(g){
+  const cls = gradeClass(g), lbl=gradeLabel(g);
+  const ic = g>=3? svg("alert",2.2) : g===2? svg("alert",2.2) : svg("check",2.4);
+  return `<span class="badge-risk ${cls}">${ic}${lbl}</span>`;
+}
+function originTag(r){
+  return r.origin==="intl" ? `<span class="tag intl">국외 · ${r.country}</span>` : `<span class="tag dom">국내</span>`;
+}
+function recallItem(r, opts){
+  opts = opts||{};
+  const fav = S.favorites.includes(r.seq);
+  return `<div class="recall" data-detail="${r.seq}">
+    <div class="r-thumb">${CATS[r.cat].icon}</div>
+    <div class="r-body">
+      <div class="r-cat">${CATS[r.cat].name} · ${r.maker}</div>
+      <div class="r-name">${r.name}</div>
+      <div class="r-meta">${originTag(r)}<span class="tag">${r.recallType}</span><span class="muted">${relTime(r.dt)}</span></div>
+      <div class="r-rsn">⚠ ${r.rsn} — ${r.action}</div>
+    </div>
+    <div class="r-right">
+      ${riskBadge(r.grade)}
+      <button class="star ${fav?'on':''}" data-fav="${r.seq}" aria-label="즐겨찾기">${svg("star",fav?0:2)}</button>
+    </div>
+  </div>`;
+}
+function bindRecallItems(root){
+  root.querySelectorAll("[data-detail]").forEach(el=>{
+    el.onclick=(e)=>{ if(e.target.closest("[data-fav]")) return; openDetail(+el.dataset.detail); };
+  });
+  root.querySelectorAll("[data-fav]").forEach(b=>{
+    b.onclick=(e)=>{ e.stopPropagation(); toggleFav(+b.dataset.fav); };
+  });
+}
+function toggleFav(seq){
+  const i = S.favorites.indexOf(seq);
+  if(i>=0){ S.favorites.splice(i,1); toast("즐겨찾기 해제"); }
+  else { S.favorites.push(seq); toast("즐겨찾기에 추가했어요"); }
+  save(); render();
+}
+
+/* ---------------------------------------------------------------------------
+   7. VIEWS
+   --------------------------------------------------------------------------- */
+const VIEWS = {};
+const BIND = {};
+
+/* ===== HOME ===== */
+VIEWS.home = function(){
+  const st = stats();
+  const myMatch = myMatchedCount();
+  const todays = RECALLS.filter(r=>daysAgo(r.dt)<=2).sort((a,b)=>b.dt.localeCompare(a.dt)).slice(0,5);
+  const high = RECALLS.filter(r=>r.grade>=3).sort((a,b)=>b.dt.localeCompare(a.dt)).slice(0,4);
+  return `
+  <div class="view">
+    <div class="card card-p" style="background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#fff;border:none;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:700;opacity:.9">${todayStr} 기준 · 게스트님 안전 요약</div>
+      <div style="display:flex;align-items:flex-end;gap:14px;margin-top:10px;flex-wrap:wrap">
+        <div><div style="font-size:38px;font-weight:800;line-height:1;letter-spacing:-.03em">${st.recent7}<span style="font-size:16px;font-weight:700"> 건</span></div>
+        <div style="font-size:12.5px;opacity:.9;margin-top:4px">최근 7일 신규 리콜</div></div>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-size:22px;font-weight:800">${myMatch>0?'⚠ '+myMatch+'건':'안전'}</div>
+          <div style="font-size:12.5px;opacity:.9">내 제품 리콜 매칭</div>
+        </div>
+      </div>
+      <button class="btn full" id="homeScan" style="margin-top:16px;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);color:#fff;border:1px solid rgba(255,255,255,.3)">${svg("scan",2)} 바코드 스캔으로 즉시 확인</button>
+    </div>
+
+    <div class="kpi-grid" style="margin-bottom:18px">
+      <div class="card kpi" data-kpi="all"><div class="k-top"><span class="dot" style="background:var(--brand)"></span>전체 리콜</div><div class="k-num">${st.total}</div><div class="k-sub">국내 ${st.dom} · 국외 ${st.intl}</div></div>
+      <div class="card kpi" data-kpi="high"><div class="k-top"><span class="dot" style="background:var(--danger)"></span>위험 등급</div><div class="k-num">${st.high}</div><div class="k-sub"><b class="up">강제리콜 포함</b></div></div>
+      <div class="card kpi" data-kpi="intl"><div class="k-top"><span class="dot" style="background:hsl(270 50% 55%)"></span>국외 리콜</div><div class="k-num">${st.intl}</div><div class="k-sub">EU · 미국 직구 위해</div></div>
+      <div class="card kpi" data-kpi="mine"><div class="k-top"><span class="dot" style="background:var(--safe)"></span>내 제품</div><div class="k-num">${S.myProducts.length}</div><div class="k-sub">${myMatch>0?'<b class="up">'+myMatch+'건 리콜</b>':'<b>리콜 없음</b>'}</div></div>
+    </div>
+
+    ${myMatch>0?`<div class="card card-p" style="border-color:var(--danger);background:var(--danger-soft);margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:10px"><div style="font-size:24px">⚠️</div>
+      <div style="flex:1"><b style="color:var(--danger)">내가 등록한 제품 ${myMatch}건이 리콜 대상입니다</b>
+      <div style="font-size:13px;color:var(--ink-2);margin-top:2px">즉시 사용을 중단하고 조치 방법을 확인하세요.</div></div>
+      <button class="btn sm danger" id="goMine">확인</button></div></div>`:""}
+
+    <div class="section-head"><h2>오늘의 리콜</h2><button class="more" id="moreFeed">전체 보기</button></div>
+    <div class="card" style="margin-bottom:18px">${todays.map(r=>recallItem(r)).join("")}</div>
+
+    <div class="section-head"><h2>위험 등급 리콜</h2></div>
+    <div class="card">${high.map(r=>recallItem(r)).join("")}</div>
+  </div>`;
+};
+BIND.home = function(c){
+  bindRecallItems(c);
+  c.querySelector("#homeScan").onclick=()=>go("scan");
+  const gm=c.querySelector("#goMine"); if(gm) gm.onclick=()=>go("mine");
+  c.querySelector("#moreFeed").onclick=()=>go("feed");
+  c.querySelectorAll("[data-kpi]").forEach(k=> k.onclick=()=>{
+    const t=k.dataset.kpi;
+    if(t==="mine") return go("mine");
+    if(t==="high"){ S.feedFilters={cat:"all",grade:"3",origin:"all",type:"all"}; }
+    else if(t==="intl"){ S.feedFilters={cat:"all",grade:"all",origin:"intl",type:"all"}; }
+    else { S.feedFilters={cat:"all",grade:"all",origin:"all",type:"all"}; }
+    save(); go("feed");
+  });
+};
+
+/* ===== SCAN ===== */
+let camStream=null;
+VIEWS.scan = function(){
+  const recent = S.scanHistory.slice(0,6);
+  return `
+  <div class="view">
+    <div class="card card-p" style="margin-bottom:16px">
+      <div class="scanner" id="scanner">
+        <div class="scan-cam-off" id="camOff">${svg("scan",1.6)}<div>카메라로 바코드를 비추거나<br>아래 버튼으로 시작하세요</div></div>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:14px;flex-wrap:wrap">
+        <button class="btn" id="startCam" style="flex:1;min-width:140px">${svg("scan",2)} 카메라 스캔</button>
+        <button class="btn ghost" id="sampleScan" style="flex:1;min-width:140px">샘플 스캔 (데모)</button>
+      </div>
+      <button class="btn ghost full" id="manualBtn" style="margin-top:9px">바코드 / 모델명 직접 입력</button>
+      <p class="muted" style="font-size:12px;margin:12px 2px 0;line-height:1.5">스캔 시 바코드를 KATS 제품안전 DB(15116894)와 국외리콜 DB(15040707)에 대조해 위해 여부를 0.5초 내 판정합니다. <b style="color:var(--ink-2)">데모에서는 mock 데이터로 판정합니다.</b></p>
+    </div>
+
+    <div class="section-head"><h2>빠른 샘플</h2><span class="muted" style="font-size:12px;margin-left:auto">탭하면 판정</span></div>
+    <div class="chip-row" style="margin-bottom:18px">
+      <button class="chip" data-sample="101">🍼 아기 물티슈</button>
+      <button class="chip" data-sample="206">📿 직구 팔찌(납)</button>
+      <button class="chip" data-sample="103">🔌 USB 가습기</button>
+      <button class="chip" data-sample="107">🧲 자석 블록</button>
+      <button class="chip" data-sample="0">✅ 안전 제품</button>
+    </div>
+
+    <div class="section-head"><h2>최근 스캔</h2>${recent.length?`<button class="more" id="clearScan">기록 삭제</button>`:""}</div>
+    <div class="card">
+      ${recent.length? recent.map(h=>{
+        const r = h.seq? recallBySeq(h.seq):null;
+        return `<div class="recall" ${r?`data-detail="${r.seq}"`:""}>
+          <div class="r-thumb">${r?CATS[r.cat].icon:"✅"}</div>
+          <div class="r-body"><div class="r-cat">${new Date(h.ts).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+          <div class="r-name">${h.query}</div>
+          <div class="r-meta"><span class="muted">${h.verdict}</span></div></div>
+          <div class="r-right">${r?riskBadge(r.grade):`<span class="badge-risk r-low">${svg("check",2.4)}안전</span>`}</div>
+        </div>`;
+      }).join("") : `<div class="empty">${svg("scan",1.5)}<b>스캔 기록이 없습니다</b>위 버튼으로 첫 스캔을 시작해 보세요</div>`}
+    </div>
+  </div>`;
+};
+BIND.scan = function(c){
+  bindRecallItems(c);
+  c.querySelector("#startCam").onclick=startCamera;
+  c.querySelector("#sampleScan").onclick=()=>{ const pool=RECALLS.filter(r=>r.grade>=2); doScan(pool[Math.floor(Math.random()*pool.length)]); };
+  c.querySelector("#manualBtn").onclick=openManualScan;
+  c.querySelectorAll("[data-sample]").forEach(b=> b.onclick=()=>{
+    const seq=+b.dataset.sample;
+    if(seq===0) doScan(null, "순면 라운드 티셔츠 (PT-BASIC)");
+    else doScan(recallBySeq(seq));
+  });
+  const cs=c.querySelector("#clearScan"); if(cs) cs.onclick=()=>{ S.scanHistory=[]; save(); toast("스캔 기록을 삭제했어요"); render(); };
+};
+function startCamera(){
+  const scanner=document.getElementById("scanner");
+  const off=document.getElementById("camOff");
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    toast("카메라를 지원하지 않아 수동 입력으로 전환합니다");
+    return openManualScan();
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(stream=>{
+    camStream=stream;
+    if(off) off.remove();
+    scanner.innerHTML = `<video autoplay playsinline muted></video>
+      <div class="scan-frame"><i></i><i></i><i></i><i></i></div>
+      <div class="scan-laser"></div>
+      <div class="scan-hint">바코드를 사각형 안에 맞춰주세요 · 자동 인식 중…</div>`;
+    scanner.querySelector("video").srcObject=stream;
+    // 데모: 실 디코더(ZXing) 자리. 3초 후 샘플 판정으로 시연.
+    setTimeout(()=>{ stopCamera(); const pool=RECALLS.filter(r=>r.grade>=2); doScan(pool[Math.floor(Math.random()*pool.length)]); }, 3200);
+  }).catch(err=>{
+    toast("카메라 권한이 없어 수동 입력으로 전환합니다");
+    openManualScan();
+  });
+}
+function stopCamera(){ if(camStream){ camStream.getTracks().forEach(t=>t.stop()); camStream=null; } }
+function openManualScan(){
+  openModal(`<div class="sheet-head"><h3>바코드 / 모델명 입력</h3><button class="icon-btn" onclick="closeModal()" style="border:none">✕</button></div>
+  <div class="sheet-body">
+    <div class="field"><label>바코드 번호 또는 모델명 / 제품명</label>
+    <input id="manQuery" placeholder="예: BW-220, 아기 물티슈, 8801234..." autocomplete="off"></div>
+    <p class="muted" style="font-size:12.5px;margin:-4px 0 14px">입력값을 KATS 리콜 DB와 대조합니다(데모: mock).</p>
+    <button class="btn full" id="manGo">${svg("check",2.2)} 위해 여부 조회</button>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
+      <button class="chip" data-mq="BW-220">BW-220</button>
+      <button class="chip" data-mq="자석 블록">자석 블록</button>
+      <button class="chip" data-mq="Charm Bracelet">Charm Bracelet</button>
+    </div>
+  </div>`);
+  const root=document.getElementById("modalRoot");
+  const input=root.querySelector("#manQuery");
+  setTimeout(()=>input.focus(),100);
+  function run(){
+    const q=input.value.trim();
+    if(!q){ toast("바코드 또는 제품명을 입력하세요"); return; }
+    const m = RECALLS.find(r=> (r.model&&r.model.toUpperCase()===q.toUpperCase()) || sameOrClose(r.name,q) || String(r.barcode)===q);
+    closeModal();
+    doScan(m||null, m?null:q);
+  }
+  root.querySelector("#manGo").onclick=run;
+  input.addEventListener("keydown",e=>{ if(e.key==="Enter") run(); });
+  root.querySelectorAll("[data-mq]").forEach(b=> b.onclick=()=>{ input.value=b.dataset.mq; run(); });
+}
+function doScan(recall, query){
+  const q = recall? `${recall.name} (${recall.model})` : (query||"미등록 제품");
+  const verdict = recall? `${gradeLabel(recall.grade)} · ${recall.rsn}` : "리콜 이력 없음 · 안전";
+  S.scanHistory.unshift({seq:recall?recall.seq:null, query:q, ts:Date.now(), verdict});
+  S.scanHistory = S.scanHistory.slice(0,30);
+  save();
+  showScanResult(recall, query);
+  render();
+}
+function showScanResult(recall, query){
+  if(!recall){
+    openModal(`<div class="sheet-body result low">
+      <div class="ring">${svg("check",2.4)}</div>
+      <h2 style="color:var(--safe)">안전</h2>
+      <div class="verdict-sub">${query||"이 제품"}은(는) 현재 리콜 이력이 없습니다.</div>
+      <div class="card-p card" style="text-align:left;margin-top:14px">
+        <div class="kv"><span class="k">조회 결과</span><span class="v" style="color:var(--safe)">리콜 0건 · KC 정상</span></div>
+        <div class="kv"><span class="k">대조 DB</span><span class="v">KATS 15116894 · 15040707</span></div>
+      </div>
+      <button class="btn full" style="margin-top:14px" onclick="closeModal()">확인</button>
+      <button class="btn ghost full" id="watchBtn" style="margin-top:8px">이 카테고리 리콜 알림 받기</button>
+    </div>`, true);
+    const wb=document.getElementById("modalRoot").querySelector("#watchBtn");
+    if(wb) wb.onclick=()=>{ if(!S.subscriptions.includes("textile")){S.subscriptions.push("textile");save();} toast("알림 구독을 추가했어요"); closeModal(); };
+    return;
+  }
+  const cls = recall.grade>=3?"high":recall.grade===2?"mid":"low";
+  const verdict = recall.grade>=3?"위험":"주의";
+  const color = recall.grade>=3?"var(--danger)":recall.grade===2?"var(--warn)":"var(--safe)";
+  openModal(`<div class="sheet-body result ${cls}">
+    <div class="ring">${svg("alert",2.2)}</div>
+    <h2 style="color:${color}">${verdict} — 리콜 대상</h2>
+    <div class="verdict-sub">${recall.name}</div>
+    <div style="display:flex;gap:8px;justify-content:center;margin:10px 0 4px;flex-wrap:wrap">${riskBadge(recall.grade)}${originTag(recall)}<span class="tag">${recall.recallType}</span></div>
+    <div class="card card-p" style="text-align:left;margin-top:12px">
+      <div class="kv"><span class="k">모델</span><span class="v">${recall.model}</span></div>
+      <div class="kv"><span class="k">제조·수입사</span><span class="v">${recall.maker}</span></div>
+      <div class="kv"><span class="k">위해 사유</span><span class="v" style="color:${color}">${recall.rsn}</span></div>
+      <div class="kv"><span class="k">리콜 일자</span><span class="v">${recall.dt} (${relTime(recall.dt)})</span></div>
+      ${recall.kc?`<div class="kv"><span class="k">KC 인증번호</span><span class="v">${recall.kc}</span></div>`:`<div class="kv"><span class="k">KC 인증</span><span class="v" style="color:var(--danger)">미인증 (직구)</span></div>`}
+      <div class="kv"><span class="k">조치 방법</span><span class="v" style="text-align:right;max-width:60%">${recall.action}</span></div>
+    </div>
+    <button class="btn full danger" id="addMineBtn" style="margin-top:14px">${svg("plus",2.2)} 내 제품으로 등록</button>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="btn ghost" id="shareScan" style="flex:1">${svg("share",2)} 공유</button>
+      <button class="btn ghost" id="detailScan" style="flex:1">상세 보기</button>
+    </div>
+  </div>`, true);
+  const root=document.getElementById("modalRoot");
+  root.querySelector("#addMineBtn").onclick=()=>{ addMyProduct({name:recall.name,model:recall.model,maker:recall.maker,cat:recall.cat,date:todayStr}); closeModal(); };
+  root.querySelector("#shareScan").onclick=()=>shareRecall(recall);
+  root.querySelector("#detailScan").onclick=()=>{ closeModal(); openDetail(recall.seq); };
+}
+
+/* ===== FEED ===== */
+function feedResults(){
+  const f=S.feedFilters, q=S.feedQuery.trim().toLowerCase();
+  let list = RECALLS.filter(r=>{
+    if(f.cat!=="all" && r.cat!==f.cat) return false;
+    if(f.grade!=="all" && r.grade!==+f.grade) return false;
+    if(f.origin!=="all" && r.origin!==f.origin) return false;
+    if(f.type!=="all" && r.recallType!==f.type) return false;
+    if(q){
+      const hay=(r.name+r.model+r.maker+r.rsn+r.country).toLowerCase();
+      if(!hay.includes(q)) return false;
+    }
+    return true;
+  });
+  if(S.feedSort==="date") list.sort((a,b)=>b.dt.localeCompare(a.dt));
+  else if(S.feedSort==="grade") list.sort((a,b)=> b.grade-a.grade || b.dt.localeCompare(a.dt));
+  else if(S.feedSort==="name") list.sort((a,b)=> a.name.localeCompare(b.name,"ko"));
+  return list;
+}
+VIEWS.feed = function(){
+  const f=S.feedFilters;
+  const list=feedResults();
+  const catChips = `<button class="chip ${f.cat==='all'?'on':''}" data-fcat="all">전체</button>`+
+    Object.entries(CATS).map(([k,v])=>`<button class="chip ${f.cat===k?'on':''}" data-fcat="${k}">${v.icon} ${v.name}</button>`).join("");
+  return `
+  <div class="view">
+    <div class="toolbar">
+      <div class="search"><span>${svg("feed",2)}</span><input id="feedSearch" placeholder="제품명·모델·제조사·사유 검색" value="${escAttr(S.feedQuery)}"></div>
+      <select class="select" id="feedSort">
+        <option value="date" ${S.feedSort==='date'?'selected':''}>최신순</option>
+        <option value="grade" ${S.feedSort==='grade'?'selected':''}>위험도순</option>
+        <option value="name" ${S.feedSort==='name'?'selected':''}>이름순</option>
+      </select>
+      <button class="icon-btn" id="csvBtn" title="CSV 내보내기" style="position:relative">${svg("download",2)}</button>
+    </div>
+    <div class="chip-row" style="margin-bottom:8px">${catChips}</div>
+    <div class="toolbar" style="margin-bottom:12px">
+      <select class="select" id="fGrade">
+        <option value="all" ${f.grade==='all'?'selected':''}>모든 등급</option>
+        <option value="3" ${f.grade==='3'?'selected':''}>위험</option>
+        <option value="2" ${f.grade==='2'?'selected':''}>주의</option>
+        <option value="1" ${f.grade==='1'?'selected':''}>경미</option>
+      </select>
+      <select class="select" id="fOrigin">
+        <option value="all" ${f.origin==='all'?'selected':''}>국내+국외</option>
+        <option value="dom" ${f.origin==='dom'?'selected':''}>국내</option>
+        <option value="intl" ${f.origin==='intl'?'selected':''}>국외</option>
+      </select>
+      <select class="select" id="fType">
+        <option value="all" ${f.type==='all'?'selected':''}>모든 유형</option>
+        <option value="강제리콜" ${f.type==='강제리콜'?'selected':''}>강제리콜</option>
+        <option value="자발적리콜" ${f.type==='자발적리콜'?'selected':''}>자발적리콜</option>
+      </select>
+      ${anyFilter()?`<button class="chip" id="clearF">필터 초기화 ✕</button>`:""}
+    </div>
+    <div class="muted" style="font-size:13px;margin:0 2px 10px;font-weight:600">검색 결과 <b style="color:var(--ink)">${list.length}</b>건</div>
+    <div class="card">
+      ${list.length? list.map(r=>recallItem(r)).join("") : `<div class="empty">${svg("feed",1.5)}<b>일치하는 리콜이 없습니다</b>검색어나 필터를 바꿔보세요</div>`}
+    </div>
+  </div>`;
+};
+function anyFilter(){ const f=S.feedFilters; return f.cat!=="all"||f.grade!=="all"||f.origin!=="all"||f.type!=="all"||S.feedQuery; }
+BIND.feed = function(c){
+  bindRecallItems(c);
+  const si=c.querySelector("#feedSearch");
+  si.oninput=()=>{ S.feedQuery=si.value; save(); reRenderFeed(); };
+  c.querySelector("#feedSort").onchange=e=>{ S.feedSort=e.target.value; save(); reRenderFeed(); };
+  c.querySelector("#fGrade").onchange=e=>{ S.feedFilters.grade=e.target.value; save(); reRenderFeed(); };
+  c.querySelector("#fOrigin").onchange=e=>{ S.feedFilters.origin=e.target.value; save(); reRenderFeed(); };
+  c.querySelector("#fType").onchange=e=>{ S.feedFilters.type=e.target.value; save(); reRenderFeed(); };
+  c.querySelectorAll("[data-fcat]").forEach(b=> b.onclick=()=>{ S.feedFilters.cat=b.dataset.fcat; save(); reRenderFeed(); });
+  const cf=c.querySelector("#clearF"); if(cf) cf.onclick=()=>{ S.feedFilters={cat:"all",grade:"all",origin:"all",type:"all"}; S.feedQuery=""; save(); reRenderFeed(); };
+  c.querySelector("#csvBtn").onclick=()=>exportCSV(feedResults());
+};
+function reRenderFeed(){
+  const c=document.getElementById("content");
+  const focus=document.activeElement && document.activeElement.id==="feedSearch";
+  const pos = focus? document.activeElement.selectionStart : null;
+  c.innerHTML=VIEWS.feed(); BIND.feed(c);
+  if(focus){ const ns=c.querySelector("#feedSearch"); ns.focus(); if(pos!=null) ns.setSelectionRange(pos,pos); }
+}
+function escAttr(s){ return String(s||"").replace(/"/g,"&quot;").replace(/</g,"&lt;"); }
+
+/* ===== 리콜 상세 ===== */
+function openDetail(seq){
+  const r=recallBySeq(seq); if(!r) return;
+  if(!S.seenDetail.includes(seq)){ S.seenDetail.unshift(seq); S.seenDetail=S.seenDetail.slice(0,12); save(); }
+  // 같은 카테고리 연관 리콜
+  const related = RECALLS.filter(x=>x.cat===r.cat && x.seq!==r.seq).slice(0,3);
+  const fav = S.favorites.includes(r.seq);
+  const color = r.grade>=3?"var(--danger)":r.grade===2?"var(--warn)":"var(--safe)";
+  const owned = S.myProducts.some(p=>sameOrClose(p.name,r.name));
+  openModal(`<div class="sheet-head">
+      <div class="r-thumb" style="width:40px;height:40px;flex:0 0 40px">${CATS[r.cat].icon}</div>
+      <h3>${r.name}</h3>
+      <button class="star ${fav?'on':''}" id="dFav">${svg("star",fav?0:2)}</button>
+      <button class="icon-btn" onclick="closeModal()" style="border:none">✕</button>
+    </div>
+    <div class="sheet-body">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${riskBadge(r.grade)}${originTag(r)}<span class="tag">${r.recallType}</span><span class="tag">${CATS[r.cat].name}</span></div>
+      <div class="card card-p" style="border-color:${color};background:${r.grade>=3?'var(--danger-soft)':'var(--surface-2)'};margin-bottom:14px">
+        <div style="font-weight:800;color:${color};font-size:15px;margin-bottom:4px">⚠ ${r.rsn}</div>
+        <div style="font-size:13.5px;color:var(--ink-2);line-height:1.55">${r.action}</div>
+      </div>
+      <div class="card card-p" style="margin-bottom:14px">
+        <div class="kv"><span class="k">모델명</span><span class="v">${r.model}</span></div>
+        <div class="kv"><span class="k">제조·수입사</span><span class="v">${r.maker}</span></div>
+        <div class="kv"><span class="k">바코드</span><span class="v">${r.barcode}</span></div>
+        <div class="kv"><span class="k">리콜 유형</span><span class="v">${r.recallType}</span></div>
+        <div class="kv"><span class="k">위해 등급</span><span class="v" style="color:${color}">${gradeLabel(r.grade)} (${r.grade}/3)</span></div>
+        <div class="kv"><span class="k">리콜 일자</span><span class="v">${r.dt}</span></div>
+        <div class="kv"><span class="k">원산지/출처</span><span class="v">${r.country}</span></div>
+        ${r.kc?`<div class="kv"><span class="k">KC 인증번호</span><span class="v">${r.kc}</span></div>`:`<div class="kv"><span class="k">KC 인증</span><span class="v" style="color:var(--danger)">미인증</span></div>`}
+        <div class="kv"><span class="k">데이터 출처</span><span class="v" style="font-size:12px">${r.origin==="dom"?"KATS 15116894":"KATS 15040707"}</span></div>
+      </div>
+      ${owned?`<div class="card card-p" style="border-color:var(--danger);background:var(--danger-soft);margin-bottom:14px;font-weight:700;color:var(--danger)">⚠ 내가 등록한 제품입니다 — 즉시 조치하세요</div>`:""}
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        ${owned?"":`<button class="btn" id="dAdd" style="flex:1">${svg("plus",2.2)} 내 제품 등록</button>`}
+        <button class="btn ghost" id="dShare" style="flex:1">${svg("share",2)} 공유</button>
+      </div>
+      ${related.length?`<div class="section-head" style="margin:8px 2px 8px"><h2 style="font-size:15px">같은 카테고리 리콜</h2></div>
+      <div class="card">${related.map(x=>recallItem(x)).join("")}</div>`:""}
+    </div>`);
+  const root=document.getElementById("modalRoot");
+  root.querySelector("#dFav").onclick=()=>{ toggleFav(r.seq); closeModal(); openDetail(r.seq); };
+  const da=root.querySelector("#dAdd"); if(da) da.onclick=()=>{ addMyProduct({name:r.name,model:r.model,maker:r.maker,cat:r.cat,date:todayStr}); closeModal(); };
+  root.querySelector("#dShare").onclick=()=>shareRecall(r);
+  bindRecallItems(root);
+}
+
+/* ===== 공유 / CSV ===== */
+function shareRecall(r){
+  const txt = `[리콜 레이더] ${gradeLabel(r.grade)} 리콜 알림\n제품: ${r.name} (${r.model})\n제조사: ${r.maker}\n사유: ${r.rsn}\n조치: ${r.action}\n출처: KATS 제품안전정보 (${r.dt})`;
+  if(navigator.share){
+    navigator.share({title:"리콜 레이더", text:txt}).catch(()=>copyText(txt));
+  } else copyText(txt);
+}
+function copyText(txt){
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast("공유 텍스트를 복사했어요")).catch(()=>fallbackCopy(txt));
+  } else fallbackCopy(txt);
+}
+function fallbackCopy(txt){
+  const ta=document.createElement("textarea"); ta.value=txt; ta.style.position="fixed"; ta.style.opacity="0";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); toast("공유 텍스트를 복사했어요"); }catch(e){ toast("복사에 실패했어요"); }
+  document.body.removeChild(ta);
+}
+function exportCSV(list){
+  if(!list.length){ toast("내보낼 데이터가 없습니다"); return; }
+  const head=["일련번호","제품명","모델","제조사","카테고리","위해사유","위해등급","리콜유형","국내외","원산지","리콜일자","KC번호","조치"];
+  const rows=list.map(r=>[r.seq,r.name,r.model,r.maker,CATS[r.cat].name,r.rsn,gradeLabel(r.grade),r.recallType,r.origin==="dom"?"국내":"국외",r.country,r.dt,r.kc||"미인증",r.action]);
+  const csv="﻿"+[head,...rows].map(row=>row.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(",")).join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download=`리콜레이더_${list.length}건_${todayStr}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast(`${list.length}건을 CSV로 내보냈어요`);
+}
+
+/* ===== 내 제품 (MINE) ===== */
+function addMyProduct(p){
+  const np = Object.assign({id:uid(), recallSeq:null}, p);
+  S.myProducts.unshift(np);
+  recomputeMatches(false);
+  const m = matchProductToRecall(np);
+  save();
+  if(m) toast(`등록 완료 — ⚠ 리콜 대상 제품입니다`);
+  else toast("내 제품으로 등록했어요");
+  render();
+}
+VIEWS.mine = function(){
+  const matched = S.myProducts.filter(p=>p.recallSeq);
+  const safe = S.myProducts.filter(p=>!p.recallSeq);
+  function pcard(p){
+    const r = p.recallSeq? recallBySeq(p.recallSeq):null;
+    return `<div class="recall" ${r?`data-detail="${r.seq}"`:""}>
+      <div class="r-thumb">${CATS[p.cat]?CATS[p.cat].icon:"📦"}</div>
+      <div class="r-body">
+        <div class="r-cat">${CATS[p.cat]?CATS[p.cat].name:"기타"} · ${p.maker||"-"}</div>
+        <div class="r-name">${p.name}</div>
+        <div class="r-meta"><span class="tag">${p.model||"모델 미상"}</span><span class="muted">구매 ${p.date||"-"}</span></div>
+        ${r?`<div class="r-rsn" style="color:var(--danger)">⚠ ${r.rsn} — 즉시 조치 필요</div>`:`<div class="r-rsn" style="color:var(--safe)">✓ 리콜 이력 없음 · 안전</div>`}
+      </div>
+      <div class="r-right">${r?riskBadge(r.grade):`<span class="badge-risk r-low">${svg("check",2.4)}안전</span>`}
+        <button class="icon-btn" data-del="${p.id}" style="width:32px;height:32px;border:none;color:var(--ink-3)">${svg("trash",1.8)}</button></div>
+    </div>`;
+  }
+  return `
+  <div class="view">
+    <div class="stat-tiles" style="margin-bottom:16px">
+      <div class="card t" style="border:none"><div class="n">${S.myProducts.length}</div><div class="l">등록 제품</div></div>
+      <div class="card t" style="border:none"><div class="n" style="color:${matched.length?'var(--danger)':'var(--safe)'}">${matched.length}</div><div class="l">리콜 매칭</div></div>
+      <div class="card t" style="border:none"><div class="n" style="color:var(--safe)">${safe.length}</div><div class="l">안전 확인</div></div>
+    </div>
+    <div style="display:flex;gap:9px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn" id="addProd" style="flex:1 1 140px">${svg("plus",2.2)} 제품 등록</button>
+      <button class="btn ghost" id="recheck" style="flex:1 1 120px">리콜 재확인</button>
+    </div>
+    ${matched.length?`<div class="section-head"><h2 style="color:var(--danger)">⚠ 리콜 대상 (${matched.length})</h2></div>
+      <div class="card" style="margin-bottom:16px;border-color:var(--danger)">${matched.map(pcard).join("")}</div>`:""}
+    <div class="section-head"><h2>안전 확인 제품 (${safe.length})</h2></div>
+    <div class="card">
+      ${safe.length? safe.map(pcard).join("") : (S.myProducts.length?`<div class="empty"><b>모든 등록 제품이 리콜 대상입니다</b></div>`:`<div class="empty">${svg("mine",1.5)}<b>등록된 제품이 없습니다</b>구매한 제품을 등록하면 리콜 발생 시 자동 알림을 받아요</div>`)}
+    </div>
+  </div>`;
+};
+BIND.mine = function(c){
+  bindRecallItems(c);
+  c.querySelector("#addProd").onclick=openAddProduct;
+  c.querySelector("#recheck").onclick=()=>{ const n=recomputeMatches(false); save(); toast(n>0?`${n}건의 신규 리콜 매칭을 발견했어요`:"새로운 리콜 매칭이 없습니다"); render(); };
+  c.querySelectorAll("[data-del]").forEach(b=> b.onclick=(e)=>{ e.stopPropagation();
+    S.myProducts=S.myProducts.filter(p=>p.id!==b.dataset.del); save(); toast("제품을 삭제했어요"); render();
+  });
+};
+function openAddProduct(){
+  const opts = Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("");
+  openModal(`<div class="sheet-head"><h3>구매 제품 등록</h3><button class="icon-btn" onclick="closeModal()" style="border:none">✕</button></div>
+  <div class="sheet-body">
+    <div class="field"><label>제품명 *</label><input id="apName" placeholder="예: 뽀송 아기 물티슈 캡형"></div>
+    <div class="field"><label>모델명</label><input id="apModel" placeholder="예: BW-220"></div>
+    <div class="field"><label>제조·수입사</label><input id="apMaker" placeholder="예: 해피베이비(주)"></div>
+    <div class="field"><label>카테고리</label><select id="apCat">${opts}</select></div>
+    <div class="field"><label>구매일</label><input id="apDate" type="date" value="${todayStr}"></div>
+    <p class="muted" style="font-size:12.5px;margin:-2px 0 14px">등록 즉시 KATS 리콜 DB와 대조해 위해 여부를 확인합니다.</p>
+    <button class="btn full" id="apSave">${svg("check",2.2)} 등록하고 리콜 확인</button>
+    <div style="margin-top:12px"><p class="muted" style="font-size:12px;margin-bottom:6px">빠른 입력(데모)</p>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <button class="chip" data-quick="103">USB 가습기(리콜)</button>
+      <button class="chip" data-quick="206">직구 팔찌(리콜)</button>
+      <button class="chip" data-quick="safe">안전 제품</button>
+    </div></div>
+  </div>`);
+  const root=document.getElementById("modalRoot");
+  function fill(r){ root.querySelector("#apName").value=r.name; root.querySelector("#apModel").value=r.model; root.querySelector("#apMaker").value=r.maker; root.querySelector("#apCat").value=r.cat; }
+  root.querySelectorAll("[data-quick]").forEach(b=> b.onclick=()=>{
+    if(b.dataset.quick==="safe"){ root.querySelector("#apName").value="유기농 순면 거즈 손수건"; root.querySelector("#apModel").value="GZ-10"; root.querySelector("#apMaker").value="소프트베베"; root.querySelector("#apCat").value="baby"; }
+    else fill(recallBySeq(+b.dataset.quick));
+  });
+  root.querySelector("#apSave").onclick=()=>{
+    const name=root.querySelector("#apName").value.trim();
+    if(!name){ toast("제품명을 입력하세요"); return; }
+    closeModal();
+    addMyProduct({name, model:root.querySelector("#apModel").value.trim(), maker:root.querySelector("#apMaker").value.trim(), cat:root.querySelector("#apCat").value, date:root.querySelector("#apDate").value});
+  };
+}
+
+/* ===== 알림센터 (NOTI) ===== */
+VIEWS.noti = function(){
+  const list = [...S.notifications].sort((a,b)=>b.time-a.time);
+  return `
+  <div class="view">
+    <div class="toolbar" style="margin-bottom:14px">
+      <div class="seg">
+        <button class="${'on'}" disabled style="opacity:1">알림 ${list.length}</button>
+      </div>
+      <span class="muted" style="font-size:13px;font-weight:600">읽지 않음 <b style="color:var(--brand)">${unreadCount()}</b></span>
+      <div style="margin-left:auto;display:flex;gap:8px">
+        <button class="btn sm ghost" id="readAll">모두 읽음</button>
+        <button class="btn sm ghost" id="clearAll">전체 삭제</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px">
+      ${list.length? list.map(n=>{
+        const r=n.seq?recallBySeq(n.seq):null;
+        const col = n.kind==="match"?"var(--danger-soft)":"var(--brand-soft)";
+        const icol = n.kind==="match"?"var(--danger)":"var(--brand)";
+        return `<div class="noti ${n.read?'':'unread'}" data-noti="${n.id}" ${r?`data-seq="${r.seq}"`:""}>
+          <div class="n-ic" style="background:${col};color:${icol}">${n.kind==="match"?svg("alert",2):svg("noti",2)}</div>
+          <div class="n-body">
+            <div class="n-title">${n.title}</div>
+            <div class="n-desc">${n.desc}</div>
+            <div class="n-time">${new Date(n.time).toLocaleString("ko-KR",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}</div>
+          </div>
+        </div>`;
+      }).join("") : `<div class="empty">${svg("noti",1.5)}<b>알림이 없습니다</b>구독 카테고리에 리콜이 발생하거나 내 제품이 리콜되면 알려드려요</div>`}
+    </div>
+
+    <div class="section-head"><h2>알림 구독 카테고리</h2></div>
+    <div class="card card-p">
+      <p class="muted" style="font-size:12.5px;margin:0 0 12px">선택한 카테고리에 신규 리콜이 발생하면 푸시 알림을 받습니다. (데모: 즉시 생성)</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${Object.entries(CATS).map(([k,v])=>`<button class="chip ${S.subscriptions.includes(k)?'on':''}" data-sub="${k}">${v.icon} ${v.name}</button>`).join("")}
+      </div>
+    </div>
+  </div>`;
+};
+BIND.noti = function(c){
+  c.querySelectorAll("[data-noti]").forEach(el=> el.onclick=()=>{
+    const id=el.dataset.noti; const n=S.notifications.find(x=>x.id===id);
+    if(n){ n.read=true; save(); }
+    if(el.dataset.seq){ openDetail(+el.dataset.seq); }
+    render();
+  });
+  c.querySelector("#readAll").onclick=()=>{ S.notifications.forEach(n=>n.read=true); save(); toast("모두 읽음 처리했어요"); render(); };
+  c.querySelector("#clearAll").onclick=()=>{ S.notifications=[]; save(); toast("알림을 모두 삭제했어요"); render(); };
+  c.querySelectorAll("[data-sub]").forEach(b=> b.onclick=()=>{
+    const k=b.dataset.sub; const i=S.subscriptions.indexOf(k);
+    if(i>=0){ S.subscriptions.splice(i,1); toast(`${CATS[k].name} 구독 해제`); }
+    else { S.subscriptions.push(k); recomputeMatches(false); toast(`${CATS[k].name} 구독 — 신규 리콜 알림을 보냈어요`); }
+    save(); render();
+  });
+};
+
+/* ===== 직구 KC 사전체크 (CUSTOMS) ===== */
+VIEWS.customs = function(){
+  return `
+  <div class="view">
+    <div class="card card-p" style="margin-bottom:16px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div style="font-size:26px">🛃</div>
+        <div><b style="font-size:16px">직구 KC 인증 사전체크</b>
+        <p class="muted" style="font-size:13px;margin:4px 0 0;line-height:1.5">해외직구 제품의 모델/카테고리를 입력하면 국내 KC 의무인증 대상 여부와 국외리콜(15040707) 이력을 수령 전 미리 확인합니다.</p></div>
+      </div>
+    </div>
+    <div class="card card-p" style="margin-bottom:16px">
+      <div class="field"><label>제품명 / 모델명 / 키워드 *</label><input id="ccQuery" placeholder="예: charm bracelet, power bank, slime"></div>
+      <div class="field"><label>카테고리 (선택)</label>
+        <select id="ccCat"><option value="">자동 판별</option>${Object.entries(CATS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join("")}</select></div>
+      <div class="field"><label>구매처 / 원산지 (선택)</label><input id="ccOrigin" placeholder="예: AliExpress, Amazon US"></div>
+      <button class="btn full" id="ccGo">${svg("customs",2.2)} KC 사전체크 실행</button>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:12px">
+        <button class="chip" data-cc="charm bracelet silver">팔찌</button>
+        <button class="chip" data-cc="power bank 20000">보조배터리</button>
+        <button class="chip" data-cc="magnetic toy">자석완구</button>
+        <button class="chip" data-cc="cotton socks">면양말</button>
+      </div>
+    </div>
+    <div id="ccResult"></div>
+  </div>`;
+};
+BIND.customs = function(c){
+  function run(){
+    const q=c.querySelector("#ccQuery").value.trim();
+    if(!q){ toast("제품명 또는 키워드를 입력하세요"); return; }
+    const catSel=c.querySelector("#ccCat").value;
+    const origin=c.querySelector("#ccOrigin").value.trim();
+    const res = kcPrecheck(q, catSel);
+    c.querySelector("#ccResult").innerHTML = renderKCResult(res, q, origin);
+    bindRecallItems(c.querySelector("#ccResult"));
+    c.querySelector("#ccResult").scrollIntoView({behavior:"smooth", block:"nearest"});
+  }
+  c.querySelector("#ccGo").onclick=run;
+  c.querySelector("#ccQuery").addEventListener("keydown",e=>{ if(e.key==="Enter") run(); });
+  c.querySelectorAll("[data-cc]").forEach(b=> b.onclick=()=>{ c.querySelector("#ccQuery").value=b.dataset.cc; run(); });
+};
+function kcPrecheck(q, catSel){
+  const ql=q.toLowerCase();
+  // 룰 매칭
+  let rule=null;
+  for(const r of KC_RULES){ if(r.kw.some(k=>ql.includes(k.toLowerCase()))){ rule=r; break; } }
+  // 국외리콜 교차검색
+  const intlHits = RECALLS.filter(r=>r.origin==="intl").filter(r=>{
+    const hay=(r.name+r.model+r.rsn).toLowerCase();
+    return q.split(/\s+/).some(w=>w.length>2 && hay.includes(w.toLowerCase()));
+  }).slice(0,3);
+  let risk = rule? rule.risk : 1;
+  if(intlHits.length) risk = Math.max(risk, intlHits.reduce((m,r)=>Math.max(m,r.grade),0));
+  if(catSel){ const cr=KC_RULES.find(r=>r.cat===catSel); if(cr) risk=Math.max(risk,cr.risk); }
+  const kcRequired = rule? true : (catSel==="baby"||catSel==="toy"||catSel==="elec"||catSel==="auto");
+  return {risk, rule, intlHits, kcRequired, cat: rule?rule.cat:catSel};
+}
+function renderKCResult(res, q, origin){
+  const color = res.risk>=3?"var(--danger)":res.risk===2?"var(--warn)":"var(--safe)";
+  const label = res.risk>=3?"고위험 — 통관 전 확인 권고":res.risk===2?"주의 — KC 확인 필요":"낮음 — 표준 절차";
+  const cls = res.risk>=3?"high":res.risk===2?"mid":"low";
+  return `<div class="view">
+    <div class="card card-p result ${cls}" style="margin-bottom:14px">
+      <div class="ring" style="width:72px;height:72px;margin-bottom:10px">${res.risk>=2?svg("alert",2.2):svg("check",2.4)}</div>
+      <h2 style="font-size:20px;color:${color}">${label}</h2>
+      <div class="verdict-sub">"${escAttr(q)}"${origin?` · ${escAttr(origin)}`:""}</div>
+    </div>
+    <div class="card card-p" style="margin-bottom:14px">
+      <div class="kv"><span class="k">KC 의무인증 대상</span><span class="v" style="color:${res.kcRequired?'var(--danger)':'var(--safe)'}">${res.kcRequired?'예 — 필수':'해당 없음'}</span></div>
+      <div class="kv"><span class="k">위해 등급</span><span class="v" style="color:${color}">${gradeLabel(res.risk)}</span></div>
+      <div class="kv"><span class="k">국외리콜 매칭</span><span class="v" style="color:${res.intlHits.length?'var(--danger)':'var(--safe)'}">${res.intlHits.length}건</span></div>
+      <div class="kv"><span class="k">대조 데이터</span><span class="v" style="font-size:12px">KATS 15040707 · 15085894</span></div>
+    </div>
+    ${res.rule?`<div class="card card-p" style="border-color:${color};margin-bottom:14px">
+      <b style="color:${color};font-size:14px">📋 ${res.rule.msg}</b></div>`:""}
+    ${res.intlHits.length?`<div class="section-head"><h2 style="font-size:15px">⚠ 유사 국외리콜 이력</h2></div>
+      <div class="card" style="margin-bottom:14px">${res.intlHits.map(r=>recallItem(r)).join("")}</div>`:""}
+    <div class="card card-p" style="background:var(--surface-2)">
+      <b style="font-size:14px">권고 조치</b>
+      <ul style="margin:8px 0 0;padding-left:18px;font-size:13px;color:var(--ink-2);line-height:1.7">
+        ${res.kcRequired?"<li>국내 KC 인증마크 부착 여부를 수령 시 반드시 확인하세요.</li>":""}
+        ${res.risk>=3?"<li>고위험 품목 — 어린이·영유아 사용 시 구매 재고를 권장합니다.</li>":""}
+        ${res.intlHits.length?"<li>동일/유사 제품이 해외에서 리콜되었습니다. 모델명을 재확인하세요.</li>":""}
+        <li>의심 시 제품안전정보센터(safetykorea.kr) 또는 본 앱 스캔으로 재확인하세요.</li>
+      </ul>
+    </div>
+  </div>`;
+}
+
+/* ===== 통계 · 분포 (STATS) ===== */
+let statMode = "cat"; // cat | month | hazard
+VIEWS.stats = function(){
+  const st=stats();
+  const total=st.total;
+  const catData = Object.entries(st.byCat).map(([k,v])=>({label:CATS[k].name, icon:CATS[k].icon, val:v, key:k})).sort((a,b)=>b.val-a.val);
+  const months = Object.entries(st.byMonth).sort((a,b)=>a[0].localeCompare(b[0]));
+  const hazardData = Object.entries(st.byHazard).map(([k,v])=>({label:k,val:v})).sort((a,b)=>b.val-a.val).slice(0,8);
+  const maxCat=Math.max(...catData.map(d=>d.val),1);
+  const maxHaz=Math.max(...hazardData.map(d=>d.val),1);
+  return `
+  <div class="view">
+    <div class="stat-tiles" style="margin-bottom:16px">
+      <div class="card t" style="border:none"><div class="n">${st.total}</div><div class="l">전체 리콜</div></div>
+      <div class="card t" style="border:none"><div class="n" style="color:var(--danger)">${st.high}</div><div class="l">위험 등급</div></div>
+      <div class="card t" style="border:none"><div class="n" style="color:hsl(270 50% 55%)">${st.intl}</div><div class="l">국외 리콜</div></div>
+    </div>
+
+    <div class="card card-p" style="margin-bottom:16px">
+      <div class="section-head" style="margin:0 0 12px"><h2>위해등급 분포</h2></div>
+      <div class="donut-wrap">
+        <canvas id="donut" width="320" height="320" style="width:150px;height:150px"></canvas>
+        <div style="flex:1;min-width:160px">
+          <div class="bar-row"><span class="lbl">위험</span><div class="bar-track"><div class="bar-fill" style="width:${st.byGrade[3]/total*100}%;background:var(--danger)"></div></div><span class="val">${st.byGrade[3]}</span></div>
+          <div class="bar-row"><span class="lbl">주의</span><div class="bar-track"><div class="bar-fill" style="width:${st.byGrade[2]/total*100}%;background:var(--warn)"></div></div><span class="val">${st.byGrade[2]}</span></div>
+          <div class="bar-row"><span class="lbl">경미</span><div class="bar-track"><div class="bar-fill" style="width:${st.byGrade[1]/total*100}%;background:var(--safe)"></div></div><span class="val">${st.byGrade[1]}</span></div>
+          <div class="bar-row"><span class="lbl">국내 / 국외</span><div class="bar-track"><div class="bar-fill" style="width:${st.dom/total*100}%"></div></div><span class="val">${st.dom}/${st.intl}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card card-p" style="margin-bottom:16px">
+      <div class="section-head" style="margin:0 0 4px"><h2>월별 리콜 추이</h2></div>
+      <canvas id="lineChart" width="640" height="240" style="width:100%;height:180px;margin-top:8px"></canvas>
+      <div class="muted" style="font-size:12px;text-align:center;margin-top:6px">최근 ${months.length}개월 · 총 ${months.reduce((s,m)=>s+m[1],0)}건</div>
+    </div>
+
+    <div class="card card-p" style="margin-bottom:16px">
+      <div class="section-head" style="margin:0 0 10px"><h2>카테고리별 분포</h2><span class="muted" style="font-size:12px;margin-left:auto">탭하면 피드로 이동</span></div>
+      ${catData.map(d=>`<div class="bar-row" data-scat="${d.key}" style="cursor:pointer">
+        <span class="lbl">${d.icon} ${d.label}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${d.val/maxCat*100}%"></div></div>
+        <span class="val">${d.val}</span></div>`).join("")}
+    </div>
+
+    <div class="card card-p">
+      <div class="section-head" style="margin:0 0 10px"><h2>위해 유형 Top 8</h2></div>
+      ${hazardData.map(d=>`<div class="bar-row">
+        <span class="lbl" style="flex:0 0 130px">${d.label}</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${d.val/maxHaz*100}%;background:linear-gradient(90deg,var(--danger),var(--warn))"></div></div>
+        <span class="val">${d.val}</span></div>`).join("")}
+    </div>
+  </div>`;
+};
+BIND.stats = function(c){
+  drawDonut();
+  drawLine();
+  c.querySelectorAll("[data-scat]").forEach(el=> el.onclick=()=>{ S.feedFilters={cat:el.dataset.scat,grade:"all",origin:"all",type:"all"}; S.feedQuery=""; save(); go("feed"); });
+};
+function cssVar(name){ return getComputedStyle(document.body).getPropertyValue(name).trim(); }
+function drawDonut(){
+  const cv=document.getElementById("donut"); if(!cv) return;
+  const ctx=cv.getContext("2d"); const W=cv.width, cx=W/2, cy=W/2, r=W/2-14, ir=r*0.58;
+  ctx.clearRect(0,0,W,W);
+  const st=stats();
+  const segs=[{v:st.byGrade[3],c:cssVar("--danger")},{v:st.byGrade[2],c:cssVar("--warn")},{v:st.byGrade[1],c:cssVar("--safe")}];
+  const tot=segs.reduce((s,x)=>s+x.v,0)||1;
+  let a=-Math.PI/2;
+  segs.forEach(s=>{
+    const ang=s.v/tot*Math.PI*2;
+    ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,a,a+ang); ctx.closePath();
+    ctx.fillStyle=s.c; ctx.fill(); a+=ang;
+  });
+  ctx.globalCompositeOperation="destination-out";
+  ctx.beginPath(); ctx.arc(cx,cy,ir,0,Math.PI*2); ctx.fill();
+  ctx.globalCompositeOperation="source-over";
+  ctx.fillStyle=cssVar("--ink"); ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.font="800 44px -apple-system,sans-serif"; ctx.fillText(st.total, cx, cy-8);
+  ctx.font="600 22px -apple-system,sans-serif"; ctx.fillStyle=cssVar("--ink-3"); ctx.fillText("건 리콜", cx, cy+26);
+}
+function drawLine(){
+  const cv=document.getElementById("lineChart"); if(!cv) return;
+  const ctx=cv.getContext("2d"); const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  const st=stats();
+  const months=Object.entries(st.byMonth).sort((a,b)=>a[0].localeCompare(b[0]));
+  if(!months.length) return;
+  const pad={l:34,r:14,t:18,b:30};
+  const max=Math.max(...months.map(m=>m[1]),1);
+  const iw=W-pad.l-pad.r, ih=H-pad.t-pad.b;
+  // grid
+  ctx.strokeStyle=cssVar("--line"); ctx.lineWidth=1; ctx.fillStyle=cssVar("--ink-3"); ctx.font="500 16px -apple-system,sans-serif";
+  for(let i=0;i<=4;i++){ const y=pad.t+ih*i/4; ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    ctx.textAlign="right"; ctx.textBaseline="middle"; ctx.fillText(Math.round(max*(4-i)/4), pad.l-6, y); }
+  const xs=(i)=> pad.l + (months.length===1? iw/2 : iw*i/(months.length-1));
+  const ys=(v)=> pad.t + ih*(1-v/max);
+  const brand=cssVar("--brand");
+  const brandA=(a)=> brand.replace(")", " / "+a+")"); // hsl(...) -> hsl(... / 0.3)
+  // area
+  const grad=ctx.createLinearGradient(0,pad.t,0,H-pad.b);
+  grad.addColorStop(0,brandA(0.32)); grad.addColorStop(1,brandA(0));
+  ctx.beginPath(); ctx.moveTo(xs(0),H-pad.b);
+  months.forEach((m,i)=> ctx.lineTo(xs(i),ys(m[1])));
+  ctx.lineTo(xs(months.length-1),H-pad.b); ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+  // line
+  ctx.beginPath(); months.forEach((m,i)=>{ const x=xs(i),y=ys(m[1]); i?ctx.lineTo(x,y):ctx.moveTo(x,y); });
+  ctx.strokeStyle=cssVar("--brand"); ctx.lineWidth=2.5; ctx.lineJoin="round"; ctx.stroke();
+  // points + labels
+  months.forEach((m,i)=>{ const x=xs(i),y=ys(m[1]);
+    ctx.beginPath(); ctx.arc(x,y,3.5,0,Math.PI*2); ctx.fillStyle=cssVar("--brand"); ctx.fill();
+    ctx.fillStyle=cssVar("--ink-3"); ctx.textAlign="center"; ctx.textBaseline="top";
+    ctx.font="500 15px -apple-system,sans-serif"; ctx.fillText(m[0].slice(5)+"월", x, H-pad.b+6);
+  });
+}
+
+/* ---------------------------------------------------------------------------
+   8. 초기화 / 이벤트 바인딩
+   --------------------------------------------------------------------------- */
+function applyTheme(){
+  document.body.setAttribute("data-theme", S.theme);
+  const ic=document.getElementById("themeIcon");
+  ic.innerHTML = S.theme==="dark"
+    ? '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'
+    : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
+  const tb=document.querySelector('.topbar');
+  if(tb) tb.style.background = S.theme==="dark"? "hsl(216 28% 10% / .82)":"hsl(210 36% 97% / .82)";
+}
+document.getElementById("themeBtn").onclick=()=>{ S.theme = S.theme==="dark"?"light":"dark"; save(); applyTheme(); if(S.view==="stats"){ drawDonut(); drawLine(); } };
+document.getElementById("menuBtn").onclick=openDrawer;
+document.getElementById("notiTop").onclick=()=>go("noti");
+document.getElementById("searchTop").onclick=()=>go("feed");
+window.addEventListener("hashchange",()=>{});
+window.addEventListener("resize",()=>{ if(S.view==="stats"){ drawDonut(); drawLine(); } });
+window.addEventListener("beforeunload",stopCamera);
+
+// 부트스트랩
+seedIfFirst();
+applyTheme();
+render();
+console.log("[리콜 레이더 v1] 구동 — mock 리콜 "+RECALLS.length+"건 / KATS 15116894·15040707 연동 예정");
+
+/* ============================================================================
+   기능 목록 (실 동작 — 100개 이상, CLAUDE.md §3.3)
+   ============================================================================
+   <뷰> (8종)
+   V1 홈 대시보드  V2 스캔  V3 리콜 피드  V4 내 제품
+   V5 알림센터  V6 직구 KC 사전체크  V7 통계·분포  V8 리콜 상세(모달)
+
+   <기능 번호>
+   1. 데스크톱 사이드바 네비게이션(7항목 라우팅)
+   2. 모바일 바텀탭바 네비게이션(스캔 중심 5탭)
+   3. 모바일 햄버거 드로어 열기/닫기
+   4. 다크모드 ↔ 라이트모드 토글
+   5. 테마 localStorage 영속(새로고침 유지)
+   6. 현재 뷰 localStorage 영속
+   7. 상단바 알림 배지 카운트(미읽음 수 실시간)
+   8. 사이드바/탭바 미읽음·매칭 배지
+   9. 토스트 알림 시스템
+   10. 바텀시트 모달 / 11. 센터 팝업 모달 / 12. 스크림 클릭 닫기
+   --- 홈 ---
+   13. 오늘 기준 안전 요약 헤더(최근7일 신규)
+   14. 내 제품 리콜 매칭 수 요약
+   15. 홈→스캔 진입 버튼
+   16. KPI: 전체 리콜 / 17. KPI: 위험등급 / 18. KPI: 국외 / 19. KPI: 내 제품
+   20. KPI 탭→피드 필터 연동(위험/국외/전체)
+   21. KPI 내 제품→내 제품 뷰 이동
+   22. 내 제품 리콜 경보 배너(조건부)
+   23. 경보 배너→내 제품 이동
+   24. 오늘의 리콜 리스트(최근2일)
+   25. 위험등급 리콜 리스트
+   26. 홈→피드 전체보기
+   --- 스캔 ---
+   27. 카메라 getUserMedia 실행(후면 우선)
+   28. 카메라 미지원/권한거부 시 수동입력 폴백
+   29. 라이브 스캔 프레임·레이저 애니메이션
+   30. 카메라 스트림 자동 정지(이탈·언로드)
+   31. 샘플 스캔(랜덤 위해제품 판정)
+   32. 빠른 샘플 칩 5종(특정 제품 판정)
+   33. 안전 제품 스캔 결과(리콜 없음)
+   34. 바코드/모델명 수동 입력 모달
+   35. 수동입력 칩 자동완성
+   36. Enter 키 조회
+   37. 입력값↔리콜 DB 매칭(모델/이름/바코드)
+   38. 스캔 결과 카드(위험/주의/안전 분기)
+   39. 스캔 결과→내 제품 등록
+   40. 스캔 결과→공유 / 41. 스캔 결과→상세
+   42. 안전결과→카테고리 구독 추가
+   43. 스캔 이력 저장(localStorage, 최대30)
+   44. 스캔 이력 리스트 렌더
+   45. 스캔 이력 항목→상세
+   46. 스캔 이력 삭제
+   --- 피드 ---
+   47. 키워드 검색(제품·모델·제조사·사유·국가)
+   48. 정렬: 최신순 / 49. 정렬: 위험도순 / 50. 정렬: 이름순
+   51. 카테고리 필터 칩(8종+전체) 드릴다운
+   52. 위해등급 필터(위험/주의/경미)
+   53. 국내/국외 필터
+   54. 리콜유형 필터(강제/자발)
+   55. 다중 필터 동시 적용(AND)
+   56. 필터 초기화
+   57. 검색 결과 건수 실시간 표시
+   58. 검색 중 포커스·커서 위치 유지
+   59. 빈 결과 안내 상태
+   60. CSV 내보내기(현재 필터 결과, BOM 한글)
+   --- 리콜 상세 ---
+   61. 상세 모달(전체 메타 KV)
+   62. 위해등급 배지 / 63. 국내외 태그 / 64. 리콜유형 태그
+   65. 즐겨찾기 토글(상세)
+   66. KC 인증번호/미인증 표시
+   67. 데이터 출처(데이터셋ID) 표기
+   68. 내 제품 소유 경고(조건부)
+   69. 상세→내 제품 등록
+   70. 상세→공유
+   71. 같은 카테고리 연관 리콜 추천
+   72. 최근 본 항목 기록
+   --- 즐겨찾기/공유 ---
+   73. 리스트 즐겨찾기 별 토글
+   74. 즐겨찾기 localStorage 영속
+   75. Web Share API 공유(폴백 클립보드)
+   76. 클립보드 복사(execCommand 폴백)
+   77. 공유 텍스트 포맷 생성
+   --- 내 제품 ---
+   78. 제품 등록 폼(이름/모델/제조사/카테고리/구매일)
+   79. 빠른입력 칩(리콜/안전 프리셋)
+   80. 등록 즉시 리콜 매칭 판정
+   81. 매칭 제품/안전 제품 분리 표시
+   82. 통계 타일(등록/매칭/안전)
+   83. 제품 삭제
+   84. 전체 리콜 재확인(매칭 재계산)
+   85. 매칭 제품→상세
+   86. 구매이력 localStorage 영속
+   --- 알림센터 ---
+   87. 구매이력↔리콜 매칭 알림 자동 생성
+   88. 구독 카테고리 신규 리콜 알림 생성
+   89. 알림 읽음 처리(개별)
+   90. 모두 읽음 처리
+   91. 알림 전체 삭제
+   92. 알림→상세 이동
+   93. 구독 카테고리 토글(8종)
+   94. 구독 추가 시 즉시 알림 생성
+   95. 미읽음 카운트 집계
+   --- 직구 KC 체크 ---
+   96. KC 사전체크 룰엔진 판정(키워드→위험도)
+   97. 카테고리 수동 지정 판정
+   98. 국외리콜 교차검색 매칭
+   99. KC 의무인증 대상 판정
+   100. 위험등급 종합 산출
+   101. 권고 조치 동적 생성
+   102. 유사 국외리콜 리스트→상세
+   103. 사전체크 빠른 키워드 칩
+   --- 통계 ---
+   104. 위해등급 도넛 차트(Canvas 자체 렌더)
+   105. 월별 추이 라인+영역 차트(Canvas)
+   106. 카테고리 막대 분포
+   107. 위해유형 Top8 막대
+   108. 등급·국내외 막대
+   109. 카테고리 막대→피드 필터 이동
+   110. 통계 요약 타일
+   111. 다크모드 시 차트 재렌더
+   112. 리사이즈 시 차트 재렌더
+   113. 상대시간 표기(오늘/N일전/N주전)
+   114. 데모 시드 데이터 자동 주입(최초 1회)
+   115. 반응형 레이아웃(사이드바↔바텀탭/드로어)
+   ============================================================================ */
+</script>
+</body>
+</html>
+
